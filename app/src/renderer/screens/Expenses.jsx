@@ -9,7 +9,11 @@ import styles from './Expenses.module.css'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import dayjs from 'dayjs'
 
-const FEED_TYPES = ['Layers Mash', 'Layers Pellet', 'Chick Mash', 'Grower Mash', 'Concentrate', 'Other']
+function loadFeedTypes() {
+  try { const s = localStorage.getItem('feedTypes'); if (s) return JSON.parse(s) } catch {}
+  return []
+}
+function saveFeedTypes(types) { localStorage.setItem('feedTypes', JSON.stringify(types)) }
 
 const EMPTY_FORM = {
   date: dayjs().format('YYYY-MM-DD'),
@@ -17,7 +21,7 @@ const EMPTY_FORM = {
   description: '',
   payment_method: 'Cash',
   amount: '',
-  feed_type: 'Layers Mash',
+  feed_type: '',
   quantity_kg: '',
   bags: '',
   supplier: '',
@@ -37,19 +41,27 @@ export default function Expenses() {
   const [showModal, setShowModal] = useState(false)
   const [editRecord, setEditRecord] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [feedTypes, setFeedTypes] = useState(loadFeedTypes)
+  const [newFeedType, setNewFeedType] = useState('')
+  const [addingFeedType, setAddingFeedType] = useState(false)
+  const [bagKg, setBagKg] = useState(25)
+  const [showBagKgModal, setShowBagKgModal] = useState(false)
+  const [bagKgDraft, setBagKgDraft] = useState('')
 
   const load = useCallback(async () => {
     await window.api.balance.autoLoad(monthYear)
-    const [r, s, b, ss] = await Promise.all([
+    const [r, s, b, ss, cfg] = await Promise.all([
       window.api.expenses.getAll(monthYear),
       window.api.expenses.getSummary(monthYear),
       window.api.balance.get(monthYear),
       window.api.sales.getSummary(monthYear),
+      window.api.settings.get(),
     ])
     setRecords(r)
     setSummary(s)
     setBalance(b)
     setSalesSummary(ss)
+    if (cfg.feed_bag_kg) setBagKg(Number(cfg.feed_bag_kg))
   }, [monthYear])
 
   useEffect(() => { load() }, [load])
@@ -64,10 +76,10 @@ export default function Expenses() {
     setEditRecord(row)
     setForm({
       date: row.date, category: row.category, description: row.description || '',
-      payment_method: row.payment_method, amount: row.amount,
+      payment_method: row.payment_method, amount: String(row.amount ?? ''),
       feed_type: row.feed_type || 'Layers Mash',
-      quantity_kg: row.quantity_kg || '',
-      bags: row.bags || '',
+      quantity_kg: row.quantity_kg != null ? String(row.quantity_kg) : '',
+      bags: row.bags != null ? String(row.bags) : '',
       supplier: row.supplier || '',
     })
     setShowModal(true)
@@ -159,102 +171,94 @@ export default function Expenses() {
   return (
     <div className={styles.page}>
 
-      {/* Wallet Banner */}
-      <div className={`${styles.walletBanner} ${isLow ? styles.walletLow : walletBalance < 0 ? styles.walletNegative : styles.walletHealthy}`}>
-        <div className={styles.walletLeft}>
-          <div className={styles.walletIcon}>{walletBalance < 0 ? '🔴' : isLow ? '🟡' : '💵'}</div>
-          <div>
-            <div className={styles.walletLabel}>Wallet Balance</div>
-            <div className={styles.walletAmount}>{formatCurrency(walletBalance)}</div>
-            <div className={styles.walletSub}>
-              {walletBalance < 0
-                ? `Overspent by ${formatCurrency(Math.abs(walletBalance))}`
-                : isLow
-                ? 'Running low — less than 20% remaining'
-                : 'Funds available this month'}
-            </div>
-          </div>
-        </div>
-        <div className={styles.walletRight}>
-          <div className={styles.walletStat}>
-            <span className={styles.walletStatLabel}>Opening Balance</span>
-            <span className={styles.walletStatValue}>{formatCurrency(openingBalance)}</span>
-          </div>
-          <div className={styles.walletStatDivider} />
-          <div className={styles.walletStat}>
-            <span className={styles.walletStatLabel}>+ Cash Received</span>
-            <span className={styles.walletStatValue} style={{ color: '#16a34a' }}>{formatCurrency(cashReceived)}</span>
-          </div>
-          <div className={styles.walletStatDivider} />
-          <div className={styles.walletStat}>
-            <span className={styles.walletStatLabel}>Total Cash In</span>
-            <span className={styles.walletStatValue}>{formatCurrency(totalCashIn)}</span>
-          </div>
-          <div className={styles.walletStatDivider} />
-          <div className={styles.walletStat}>
-            <span className={styles.walletStatLabel}>− Expenses</span>
-            <span className={styles.walletStatValue} style={{ color: '#dc2626' }}>{formatCurrency(totalExpenses)}</span>
-          </div>
-        </div>
+      {/* Top strip: wallet left, category breakdown right */}
+      <div className={styles.topStrip}>
 
-        {/* Spend progress bar */}
-        <div className={styles.walletProgress}>
-          <div className={styles.walletProgressTrack}>
-            <div
-              className={styles.walletProgressFill}
-              style={{
-                width: `${spentPct}%`,
-                background: walletBalance < 0 ? '#dc2626' : isLow ? '#d97706' : '#16a34a',
-              }}
-            />
-          </div>
-          <div className={styles.walletProgressLabel}>
-            <span>{spentPct.toFixed(0)}% spent</span>
-            <span>{(100 - spentPct).toFixed(0)}% remaining</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom row: category breakdown + pie */}
-      <div className={styles.bottomRow}>
-        {/* Category pills */}
-        <div className={styles.categoryList}>
-          <div className={styles.sectionTitle}>By Category</div>
-          {pieData.length === 0 && (
-            <p className={styles.empty}>No expenses yet this month.</p>
-          )}
-          {pieData.map((c, i) => (
-            <div key={c.name} className={styles.categoryItem}>
-              <div className={styles.categoryDot} style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
-              <span className={styles.categoryName}>{c.name}</span>
-              <div className={styles.categoryBar}>
-                <div className={styles.categoryBarFill}
-                  style={{ width: `${totalExpenses > 0 ? (c.value / totalExpenses) * 100 : 0}%`, background: PIE_COLORS[i % PIE_COLORS.length] }} />
+        {/* Wallet card */}
+        <div className={`${styles.walletBanner} ${isLow ? styles.walletLow : walletBalance < 0 ? styles.walletNegative : styles.walletHealthy}`}>
+          <div className={styles.walletLeft}>
+            <div className={styles.walletIcon}>{walletBalance < 0 ? '🔴' : isLow ? '🟡' : '💵'}</div>
+            <div>
+              <div className={styles.walletLabel}>Wallet Balance</div>
+              <div className={styles.walletAmount}>{formatCurrency(walletBalance)}</div>
+              <div className={styles.walletSub}>
+                {walletBalance < 0
+                  ? `Overspent by ${formatCurrency(Math.abs(walletBalance))}`
+                  : isLow
+                  ? 'Running low — less than 20% remaining'
+                  : 'Funds available this month'}
               </div>
-              <span className={styles.categoryPct}>
-                {totalExpenses > 0 ? ((c.value / totalExpenses) * 100).toFixed(0) : 0}%
-              </span>
-              <span className={styles.categoryAmount}>{formatCurrency(c.value)}</span>
             </div>
-          ))}
+          </div>
+          <div className={styles.walletRight}>
+            <div className={styles.walletStat}>
+              <span className={styles.walletStatLabel}>Opening Balance</span>
+              <span className={styles.walletStatValue}>{formatCurrency(openingBalance)}</span>
+            </div>
+            <div className={styles.walletStat}>
+              <span className={styles.walletStatLabel}>+ Cash Received</span>
+              <span className={styles.walletStatValue} style={{ color: '#16a34a' }}>{formatCurrency(cashReceived)}</span>
+            </div>
+            <div className={styles.walletStat}>
+              <span className={styles.walletStatLabel}>Total Cash In</span>
+              <span className={styles.walletStatValue}>{formatCurrency(totalCashIn)}</span>
+            </div>
+            <div className={styles.walletStat}>
+              <span className={styles.walletStatLabel}>− Expenses</span>
+              <span className={styles.walletStatValue} style={{ color: '#dc2626' }}>{formatCurrency(totalExpenses)}</span>
+            </div>
+          </div>
+          <div className={styles.walletProgress}>
+            <div className={styles.walletProgressTrack}>
+              <div className={styles.walletProgressFill}
+                style={{ width: `${spentPct}%`, background: walletBalance < 0 ? '#dc2626' : isLow ? '#d97706' : '#16a34a' }} />
+            </div>
+            <div className={styles.walletProgressLabel}>
+              <span>{spentPct.toFixed(0)}% spent</span>
+              <span>{(100 - spentPct).toFixed(0)}% remaining</span>
+            </div>
+          </div>
         </div>
 
-        {/* Pie chart */}
-        {pieData.length > 0 && (
-          <div className={styles.pieCard}>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name"
-                  cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3}>
-                  {pieData.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
-                  ))}
-                </Pie>
-                <Tooltip formatter={v => formatCurrency(v)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-              </PieChart>
-            </ResponsiveContainer>
+        {/* Category breakdown + pie */}
+        <div className={styles.bottomRow}>
+          <div className={styles.categoryList}>
+            <div className={styles.sectionTitle}>By Category</div>
+            {pieData.length === 0
+              ? <p className={styles.empty}>No expenses yet this month.</p>
+              : pieData.map((c, i) => (
+                <div key={c.name} className={styles.categoryItem}>
+                  <div className={styles.categoryDot} style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                  <span className={styles.categoryName}>{c.name}</span>
+                  <div className={styles.categoryBar}>
+                    <div className={styles.categoryBarFill}
+                      style={{ width: `${totalExpenses > 0 ? (c.value / totalExpenses) * 100 : 0}%`, background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                  </div>
+                  <span className={styles.categoryPct}>
+                    {totalExpenses > 0 ? ((c.value / totalExpenses) * 100).toFixed(0) : 0}%
+                  </span>
+                  <span className={styles.categoryAmount}>{formatCurrency(c.value)}</span>
+                </div>
+              ))
+            }
           </div>
-        )}
+          {pieData.length > 0 && (
+            <div className={styles.pieCard}>
+              <ResponsiveContainer width="100%" height={160}>
+                <PieChart>
+                  <Pie data={pieData} dataKey="value" nameKey="name"
+                    cx="50%" cy="50%" innerRadius={40} outerRadius={68} paddingAngle={3}>
+                    {pieData.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={v => formatCurrency(v)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
       </div>
 
       {/* Toolbar */}
@@ -315,20 +319,91 @@ export default function Expenses() {
                 </div>
                 <div className={styles.formGrid2col}>
                   <FormField label="Feed Type">
-                    <Select value={form.feed_type}
-                      onChange={e => setForm(f => ({ ...f, feed_type: e.target.value }))}>
-                      {FEED_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </Select>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Select value={form.feed_type} style={{ flex: 1 }} required
+                        onChange={e => setForm(f => ({ ...f, feed_type: e.target.value }))}>
+                        <option value="">— Select type —</option>
+                        {feedTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                      </Select>
+                      <button
+                        type="button"
+                        title="Add new feed type"
+                        onClick={() => { setAddingFeedType(true); setNewFeedType('') }}
+                        style={{ flexShrink: 0, height: 48, width: 48, background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >+</button>
+                    </div>
+                    {addingFeedType && (
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="New feed type name"
+                          value={newFeedType}
+                          onChange={e => setNewFeedType(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              const trimmed = newFeedType.trim()
+                              if (trimmed && !feedTypes.includes(trimmed)) {
+                                const updated = [...feedTypes, trimmed]
+                                setFeedTypes(updated)
+                                saveFeedTypes(updated)
+                                setForm(f => ({ ...f, feed_type: trimmed }))
+                              }
+                              setAddingFeedType(false); setNewFeedType('')
+                            }
+                            if (e.key === 'Escape') { setAddingFeedType(false); setNewFeedType('') }
+                          }}
+                          style={{ flex: 1, border: '1.5px solid var(--color-primary)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', fontSize: 15, outline: 'none', fontFamily: 'var(--font)' }}
+                        />
+                        <button type="button"
+                          onClick={() => {
+                            const trimmed = newFeedType.trim()
+                            if (trimmed && !feedTypes.includes(trimmed)) {
+                              const updated = [...feedTypes, trimmed]
+                              setFeedTypes(updated)
+                              saveFeedTypes(updated)
+                              setForm(f => ({ ...f, feed_type: trimmed }))
+                            }
+                            setAddingFeedType(false); setNewFeedType('')
+                          }}
+                          style={{ height: 48, padding: '0 16px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' }}
+                        >Add</button>
+                        <button type="button"
+                          onClick={() => { setAddingFeedType(false); setNewFeedType('') }}
+                          style={{ height: 48, padding: '0 14px', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font)' }}
+                        >✕</button>
+                      </div>
+                    )}
                   </FormField>
-                  <FormField label="Bags">
+                  <FormField label={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span>Bags</span>
+                      <button
+                        type="button"
+                        title="Update bag size conversion"
+                        onClick={() => { setBagKgDraft(String(bagKg)); setShowBagKgModal(true) }}
+                        style={{ fontSize: 11, fontWeight: 600, color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '1px 8px', cursor: 'pointer', fontFamily: 'var(--font)' }}
+                      >1 bag = {bagKg} kg ✎</button>
+                    </div>
+                  }>
                     <Input type="number" min="0" step="1" placeholder="e.g. 10"
                       value={form.bags}
-                      onChange={e => setForm(f => ({ ...f, bags: e.target.value }))} />
+                      onChange={e => {
+                        const bags = e.target.value
+                        setForm(f => ({
+                          ...f,
+                          bags,
+                          quantity_kg: bags && !f._kgManuallySet
+                            ? String(Math.round(Number(bags) * bagKg * 10) / 10)
+                            : f.quantity_kg
+                        }))
+                      }} />
                   </FormField>
-                  <FormField label="Quantity (kg)">
+                  <FormField label="Quantity (kg)" hint="Auto-filled from bags × kg/bag. Edit to override.">
                     <Input type="number" min="0" step="0.1" placeholder="e.g. 500"
                       value={form.quantity_kg}
-                      onChange={e => setForm(f => ({ ...f, quantity_kg: e.target.value }))} />
+                      onChange={e => setForm(f => ({ ...f, quantity_kg: e.target.value, _kgManuallySet: true }))} />
                   </FormField>
                   <FormField label="Supplier">
                     <Input type="text" placeholder="Supplier name"
@@ -346,6 +421,48 @@ export default function Expenses() {
               </div>
             )}
           </form>
+        </Modal>
+      )}
+
+      {/* Bag size conversion modal */}
+      {showBagKgModal && (
+        <Modal
+          title="Bag Size Conversion"
+          onClose={() => setShowBagKgModal(false)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setShowBagKgModal(false)}>Cancel</Button>
+              <Button onClick={async () => {
+                const val = Number(bagKgDraft) || 25
+                setBagKg(val)
+                await window.api.settings.update({ feed_bag_kg: val })
+                if (form.bags && !form._kgManuallySet) {
+                  setForm(f => ({ ...f, quantity_kg: String(Math.round(Number(f.bags) * val * 10) / 10) }))
+                }
+                setShowBagKgModal(false)
+              }}>Save</Button>
+            </>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ margin: 0, fontSize: 15, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+              Set how many kilograms are in one bag of feed. This is used to auto-calculate the quantity when you enter the number of bags.
+            </p>
+            <FormField label="Kilograms per Bag (kg)">
+              <Input
+                type="number"
+                min="1"
+                step="0.1"
+                placeholder="e.g. 25"
+                value={bagKgDraft}
+                onChange={e => setBagKgDraft(e.target.value)}
+                autoFocus
+              />
+            </FormField>
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', fontSize: 14, color: '#15803d' }}>
+              With {bagKgDraft || '—'} kg/bag: 10 bags = <strong>{bagKgDraft ? (10 * Number(bagKgDraft)).toFixed(1) : '—'} kg</strong>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

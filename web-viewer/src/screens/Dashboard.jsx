@@ -14,29 +14,37 @@ export default function Dashboard() {
   const [expenses, setExpenses] = useState([])
   const [flocks, setFlocks] = useState([])
   const [movements, setMovements] = useState([])
+  const [cashReceived, setCashReceived] = useState(0)
 
   useEffect(() => {
     setLoading(true)
     Promise.all([
       supabase.from('production').select('date, total_eggs, flock_id').eq('month_year', monthYear),
-      supabase.from('sales').select('total_revenue').eq('month_year', monthYear),
+      supabase.from('sales').select('total_revenue, payment_status').eq('month_year', monthYear),
       supabase.from('expenses').select('amount').eq('month_year', monthYear),
       supabase.from('flocks').select('*').eq('is_active', 1),
       supabase.from('flock_movements').select('flock_id, count'),
-    ]).then(([prod, sal, exp, fl, mov]) => {
+      supabase.from('credit_sales').select('amount_paid, month_year').eq('month_year', monthYear),
+      supabase.from('debt_payments').select('amount, month_year').eq('month_year', monthYear),
+    ]).then(([prod, sal, exp, fl, mov, cs, dp]) => {
       setProduction(prod.data || [])
       setSales(sal.data || [])
       setExpenses(exp.data || [])
       setFlocks(fl.data || [])
       setMovements(mov.data || [])
+      // cash received = cash sales + credit deposits + debt repayments
+      const cashSales = (sal.data || []).filter(r => !r.payment_status || r.payment_status === 'cash').reduce((s, r) => s + (r.total_revenue || 0), 0)
+      const deposits = (cs.data || []).reduce((s, r) => s + (r.amount_paid || 0), 0)
+      const repayments = (dp.data || []).reduce((s, r) => s + (r.amount || 0), 0)
+      setCashReceived(cashSales + deposits + repayments)
       setLoading(false)
     })
   }, [monthYear])
 
   const totalProduced = production.reduce((sum, r) => sum + (r.total_eggs || 0), 0)
-  const grossRevenue = sales.reduce((sum, r) => sum + (r.total_revenue || 0), 0)
+  const grossRevenue  = sales.reduce((sum, r) => sum + (r.total_revenue || 0), 0)
   const totalExpenses = expenses.reduce((sum, r) => sum + (r.amount || 0), 0)
-  const netProfit = grossRevenue - totalExpenses
+  const netProfit = cashReceived - totalExpenses
 
   function getBirdCount(flockId, initialCount) {
     const removed = movements
@@ -70,9 +78,9 @@ export default function Dashboard() {
           <div className={s.kpiSub}>{totalProduced.toLocaleString()} eggs</div>
         </div>
         <div className={`${s.kpiCard} ${s.kpiCard_green}`}>
-          <div className={s.kpiLabel}>Gross Revenue</div>
-          <div className={s.kpiValue}>{formatCurrency(grossRevenue)}</div>
-          <div className={s.kpiSub}>From egg sales</div>
+          <div className={s.kpiLabel}>Cash Received</div>
+          <div className={s.kpiValue}>{formatCurrency(cashReceived)}</div>
+          <div className={s.kpiSub}>{grossRevenue !== cashReceived ? `₦${(grossRevenue - cashReceived).toLocaleString()} uncollected` : 'From egg sales'}</div>
         </div>
         <div className={s.kpiCard}>
           <div className={s.kpiLabel}>Total Expenses</div>

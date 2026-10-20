@@ -446,6 +446,35 @@ export default function Settings() {
         </div>
       </section>
 
+      {/* ── Feed Settings ────────────────────────────────────────── */}
+      <section className={styles.section}>
+        <SectionHead
+          icon="🌾"
+          iconBg="#f0fdf4"
+          iconColor="#16a34a"
+          title="Feed Settings"
+          desc="Configure how feed stock is calculated from purchases."
+        />
+        <div className={styles.sectionBody}>
+          <div className={styles.farmGrid}>
+            <FormField label="Kg per Bag" hint="Used to estimate stock when only bags are recorded. Default is 25 kg.">
+              <Input
+                type="number"
+                min="1"
+                step="0.1"
+                placeholder="25"
+                value={settings.feed_bag_kg || ''}
+                onChange={e => setSettings(s => ({ ...s, feed_bag_kg: e.target.value }))}
+              />
+            </FormField>
+          </div>
+          <div className={styles.saveRow}>
+            <Button onClick={handleSaveSettings}>Save</Button>
+            {saved && <span className={styles.savedMsg}>✓ Saved</span>}
+          </div>
+        </div>
+      </section>
+
       {/* ── AI Assistant ─────────────────────────────────────────── */}
       <section className={styles.section}>
         <SectionHead

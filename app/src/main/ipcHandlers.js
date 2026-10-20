@@ -488,12 +488,9 @@ function registerSalesHandlers(ipcMain) {
     const db = getDb()
     const sale = db.prepare('SELECT credit_sale_id FROM sales WHERE id = ?').get(id)
     db.prepare('DELETE FROM sales WHERE id = ?').run(id)
-    // Remove the auto-created credit_sale only if it has no payments
+    // Always remove the linked credit_sale (debt_payments cascade-delete via FK)
     if (sale?.credit_sale_id) {
-      const cs = db.prepare('SELECT amount_paid FROM credit_sales WHERE id = ?').get(sale.credit_sale_id)
-      if (cs && cs.amount_paid === 0) {
-        db.prepare('DELETE FROM credit_sales WHERE id = ?').run(sale.credit_sale_id)
-      }
+      db.prepare('DELETE FROM credit_sales WHERE id = ?').run(sale.credit_sale_id)
     }
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'sales:delete', entity: 'sales', entityId: id })
     return { success: true }
@@ -995,22 +992,36 @@ function registerFeedHandlers(ipcMain) {
   ipcMain.handle('feed:getStock', () => {
     const db = getDb()
 
-    // Total purchased all-time: from expenses where category = 'Feed' and quantity_kg is set
-    const purchased = db.prepare(
-      "SELECT COALESCE(SUM(quantity_kg),0) AS total_kg FROM expenses WHERE category='Feed' AND quantity_kg IS NOT NULL AND quantity_kg > 0"
-    ).get()
+    const bagKgRow = db.prepare("SELECT value FROM settings WHERE key='feed_bag_kg'").get()
+    const bagKg = bagKgRow ? (Number(bagKgRow.value) || 25) : 25
 
-    // Total consumed all-time: from feed_log (daily usage entries)
+    // Use quantity_kg if set, otherwise fall back to bags * bagKg
+    const purchased = db.prepare(`
+      SELECT COALESCE(SUM(
+        CASE WHEN quantity_kg IS NOT NULL AND quantity_kg > 0 THEN quantity_kg
+             WHEN bags IS NOT NULL AND bags > 0 THEN bags * ?
+             ELSE 0 END
+      ), 0) AS total_kg
+      FROM expenses WHERE category='Feed'
+    `).get(bagKg)
+
     const consumed = db.prepare(
       'SELECT COALESCE(SUM(quantity_kg),0) AS total_kg FROM feed_log'
     ).get()
 
     const stockOnHandKg = Math.max((purchased.total_kg || 0) - (consumed.total_kg || 0), 0)
 
-    // By feed type: purchased vs consumed
-    const purchasedByType = db.prepare(
-      "SELECT feed_type, COALESCE(SUM(quantity_kg),0) AS kg FROM expenses WHERE category='Feed' AND feed_type IS NOT NULL AND quantity_kg > 0 GROUP BY feed_type"
-    ).all()
+    const purchasedByType = db.prepare(`
+      SELECT feed_type,
+        COALESCE(SUM(
+          CASE WHEN quantity_kg IS NOT NULL AND quantity_kg > 0 THEN quantity_kg
+               WHEN bags IS NOT NULL AND bags > 0 THEN bags * ?
+               ELSE 0 END
+        ), 0) AS kg
+      FROM expenses
+      WHERE category='Feed' AND feed_type IS NOT NULL
+      GROUP BY feed_type
+    `).all(bagKg)
     const consumedByType = db.prepare(
       'SELECT feed_type, COALESCE(SUM(quantity_kg),0) AS kg FROM feed_log GROUP BY feed_type'
     ).all()

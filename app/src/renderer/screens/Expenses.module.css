@@ -1,16 +1,24 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
-/* ── Wallet Banner ─────────────────────────────────────────── */
+/* ── Top strip: wallet + breakdown side by side ────────────── */
+.topStrip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* ── Wallet Card ───────────────────────────────────────────── */
 .walletBanner {
   border-radius: var(--radius-md);
-  padding: 20px 24px 16px;
+  padding: 18px 20px 14px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   border: 1px solid transparent;
 }
 
@@ -32,26 +40,26 @@
 .walletLeft {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: 12px;
 }
 
 .walletIcon {
-  font-size: 31.9px;
+  font-size: 28px;
   line-height: 1;
   margin-top: 2px;
 }
 
 .walletLabel {
-  font-size: 13.7px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-secondary);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .walletAmount {
-  font-size: 36.5px;
+  font-size: 30px;
   font-weight: 800;
   line-height: 1.1;
   color: var(--color-text);
@@ -59,60 +67,59 @@
 }
 
 .walletSub {
-  font-size: 13.7px;
+  font-size: 12.5px;
   color: var(--color-text-secondary);
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .walletRight {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 0;
-  flex-wrap: wrap;
-  margin-left: auto;
   background: rgba(255,255,255,0.55);
   border-radius: var(--radius-sm);
-  padding: 10px 16px;
   border: 1px solid rgba(0,0,0,0.06);
+  overflow: hidden;
 }
 
 .walletStat {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 0 16px;
-  gap: 3px;
+  padding: 8px 12px;
+  gap: 2px;
+  border-right: 1px solid rgba(0,0,0,0.06);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
 }
 
+.walletStat:nth-child(even) { border-right: none; }
+.walletStat:nth-last-child(-n+2) { border-bottom: none; }
+
 .walletStatLabel {
-  font-size: 12.5px;
+  font-size: 11px;
   color: var(--color-text-secondary);
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .walletStatValue {
-  font-size: 16.0px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--color-text);
 }
 
-.walletStatDivider {
-  width: 1px;
-  height: 32px;
-  background: rgba(0,0,0,0.1);
-  flex-shrink: 0;
-}
+.walletStatDivider { display: none; }
 
 /* ── Progress Bar ──────────────────────────────────────────── */
 .walletProgress {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .walletProgressTrack {
-  height: 8px;
+  height: 7px;
   background: rgba(0,0,0,0.08);
   border-radius: 100px;
   overflow: hidden;
@@ -127,42 +134,45 @@
 .walletProgressLabel {
   display: flex;
   justify-content: space-between;
-  font-size: 12.5px;
+  font-size: 11.5px;
   color: var(--color-text-secondary);
   font-weight: 500;
 }
 
-/* ── Bottom Row ────────────────────────────────────────────── */
+/* ── Category breakdown card ───────────────────────────────── */
 .bottomRow {
   display: flex;
-  gap: 16px;
-  align-items: flex-start;
+  gap: 0;
+  align-items: stretch;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
 .categoryList {
   flex: 1;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 16px 20px;
-  box-shadow: var(--shadow-sm);
+  padding: 14px 18px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
 .sectionTitle {
-  font-size: 14.8px;
-  font-weight: 600;
-  color: var(--color-text);
-  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: 2px;
 }
 
 .empty {
-  font-size: 14.8px;
+  font-size: 13.5px;
   color: var(--color-text-secondary);
   margin: 0;
 }
@@ -170,7 +180,7 @@
 .categoryItem {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .categoryDot {
@@ -181,10 +191,10 @@
 }
 
 .categoryName {
-  font-size: 14.8px;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--color-text);
-  width: 90px;
+  width: 80px;
   flex-shrink: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -193,7 +203,7 @@
 
 .categoryBar {
   flex: 1;
-  height: 6px;
+  height: 5px;
   background: var(--color-border);
   border-radius: 100px;
   overflow: hidden;
@@ -206,30 +216,30 @@
 }
 
 .categoryPct {
-  font-size: 13.7px;
+  font-size: 12.5px;
   color: var(--color-text-secondary);
-  width: 32px;
+  width: 30px;
   text-align: right;
   flex-shrink: 0;
 }
 
 .categoryAmount {
-  font-size: 14.8px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--color-text);
-  width: 90px;
+  width: 85px;
   text-align: right;
   flex-shrink: 0;
 }
 
 .pieCard {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  box-shadow: var(--shadow-sm);
+  padding: 14px;
   flex-shrink: 0;
-  width: 220px;
+  width: 180px;
+  border-left: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ── Toolbar ───────────────────────────────────────────────── */
@@ -240,7 +250,7 @@
 }
 
 .recordCount {
-  font-size: 14.8px;
+  font-size: 14px;
   color: var(--color-text-secondary);
 }
 
@@ -249,7 +259,7 @@
   display: inline-block;
   border-radius: 100px;
   padding: 2px 10px;
-  font-size: 13.7px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -259,7 +269,7 @@
   color: var(--color-text-secondary);
   border-radius: 100px;
   padding: 2px 9px;
-  font-size: 13.7px;
+  font-size: 13px;
   font-weight: 500;
 }
 

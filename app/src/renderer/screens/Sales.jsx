@@ -84,10 +84,10 @@ export default function Sales() {
     setSalesForm({
       date: row.date,
       egg_size: row.egg_size,
-      price_per_crate: row.price_per_crate,
+      price_per_crate: String(row.price_per_crate ?? ''),
       flock_id: row.flock_id,
-      crates: row.crates,
-      pieces: row.pieces,
+      crates: String(row.crates ?? ''),
+      pieces: String(row.pieces ?? ''),
       payment_status: row.payment_status || 'cash',
       credit_customer_id: row.credit_customer_id || '',
       buyer_name: row.buyer_name || '',
@@ -151,7 +151,7 @@ export default function Sales() {
     setEditDom(row)
     setDomForm({
       date: row.date, location: row.location || '',
-      crates: row.crates, pieces: row.pieces, flock_id: row.flock_id,
+      crates: String(row.crates ?? ''), pieces: String(row.pieces ?? ''), flock_id: row.flock_id,
     })
     setShowDomModal(true)
   }
