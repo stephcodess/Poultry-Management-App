@@ -1,0 +1,131 @@
+.birdGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.birdCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid #dc2626;
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.birdCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.flockDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.flockName {
+  font-size: 14.8px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.birdStat {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.birdStat > div {
+  flex: 1;
+  text-align: center;
+}
+
+.birdCount {
+  font-size: 25.1px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.birdDead {
+  font-size: 25.1px;
+  font-weight: 700;
+  color: #dc2626;
+  line-height: 1.2;
+}
+
+.birdPct {
+  font-size: 25.1px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.birdLabel {
+  font-size: 11.4px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+
+.birdDivider {
+  width: 1px;
+  height: 40px;
+  background: var(--color-border);
+  flex: none !important;
+}
+
+.progressTrack {
+  background: var(--color-surface-alt);
+  border-radius: 100px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 100px;
+  transition: width 0.5s ease;
+}
+
+.progressLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.4px;
+  color: var(--color-text-muted);
+  margin-top: -4px;
+}
+
+.deathCount {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.summaryRow {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.pieCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+  min-width: 280px;
+  flex-shrink: 0;
+}
+
+.pieTitle {
+  font-size: 14.8px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}

@@ -1,0 +1,344 @@
+/* ── Page ───────────────────────────────────────────────────── */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 24px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: var(--color-text-muted);
+  font-size: 16.0px;
+}
+
+/* ── Hero Banner ────────────────────────────────────────────── */
+.hero {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  color: #fff;
+  box-shadow: 0 4px 24px rgba(37,99,235,0.25);
+}
+
+.heroLeft { display: flex; flex-direction: column; gap: 10px; }
+
+.heroTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22.8px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.heroIcon { font-size: 29.6px; }
+
+.heroMonth {
+  font-size: 14.8px;
+  color: rgba(255,255,255,0.7);
+}
+
+.heroPills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 13.7px;
+  font-weight: 600;
+}
+
+.heroRight {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(255,255,255,0.12);
+  border-radius: var(--radius-md);
+  padding: 14px 20px;
+  backdrop-filter: blur(4px);
+  flex-shrink: 0;
+}
+
+.heroStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0 20px;
+}
+
+.heroStatValue {
+  font-size: 25.1px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+.heroStatLabel {
+  font-size: 12.5px;
+  color: rgba(255,255,255,0.65);
+  white-space: nowrap;
+}
+
+.heroStatDivider {
+  width: 1px;
+  height: 36px;
+  background: rgba(255,255,255,0.2);
+}
+
+/* ── Section label ──────────────────────────────────────────── */
+.sectionLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ── KPI Cards ──────────────────────────────────────────────── */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.kpiCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px 18px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: box-shadow 0.15s;
+}
+
+.kpiCard:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.kpiTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.kpiIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19.4px;
+}
+
+.kpiBadge {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 100px;
+}
+
+.kpiBadgeUp { background: #dcfce7; color: #16a34a; }
+.kpiBadgeDown { background: #fee2e2; color: #dc2626; }
+
+.kpiValue {
+  font-size: 22.8px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.kpiLabel {
+  font-size: 13.7px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.kpiSub {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+/* ── Charts Grid ────────────────────────────────────────────── */
+.chartsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.chartCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.chartHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.chartTitle {
+  font-size: 16.0px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.chartSub {
+  font-size: 13.1px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.chartLegend {
+  display: flex;
+  gap: 12px;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  align-items: center;
+}
+
+.chartLegend span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chartEmpty {
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 14.8px;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Custom Tooltip ─────────────────────────────────────────── */
+.tooltip {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 13px;
+  font-size: 13.7px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tooltipLabel {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Financial Summary Card ─────────────────────────────────── */
+.summaryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summaryList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14.8px;
+}
+
+.summaryLabel {
+  color: var(--color-text-secondary);
+}
+
+.summaryValue {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.summaryDivider {
+  border-top: 1px solid var(--color-border);
+  margin: 4px 0;
+}
+
+.summaryTotal {
+  font-size: 16.0px;
+  font-weight: 700;
+  color: var(--color-text);
+  padding-top: 4px;
+}
+
+/* ── Progress bars ──────────────────────────────────────────── */
+.progressSection {
+  margin-top: auto;
+  border-top: 1px solid var(--color-border);
+  padding-top: 14px;
+}
+
+.progressLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.7px;
+  color: var(--color-text-secondary);
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.progressTrack {
+  background: var(--color-surface-alt);
+  border-radius: 100px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 100px;
+  transition: width 0.6s ease;
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .kpiGrid { grid-template-columns: repeat(2, 1fr); }
+  .chartsGrid { grid-template-columns: 1fr; }
+  .hero { flex-direction: column; align-items: flex-start; }
+  .heroRight { width: 100%; justify-content: space-around; }
+}

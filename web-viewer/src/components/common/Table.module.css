@@ -1,0 +1,108 @@
+.wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15.4px;
+}
+
+.th {
+  padding: 11px 14px;
+  font-size: 13.1px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--color-surface-alt);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.tr:not(:last-child) .td {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tr:hover .td {
+  background: var(--color-surface-alt);
+}
+
+.td {
+  padding: 11px 14px;
+  color: var(--color-text);
+  vertical-align: middle;
+}
+
+.empty {
+  padding: 36px 14px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 14.8px;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 4px 2px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pagerInfo {
+  font-size: 13.7px;
+  color: var(--color-text-muted);
+}
+
+.pagerControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagerBtn {
+  min-width: 30px;
+  height: 30px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 14.8px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0 6px;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagerBtn:hover:not(:disabled) {
+  background: var(--color-surface-alt);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.pagerBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pagerBtnActive {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #fff !important;
+  font-weight: 700;
+}
+
+.pagerEllipsis {
+  font-size: 14.8px;
+  color: var(--color-text-muted);
+  padding: 0 4px;
+  user-select: none;
+}

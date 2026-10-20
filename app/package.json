@@ -1,0 +1,51 @@
+{
+  "name": "eldesign-poultry",
+  "version": "1.0.0",
+  "description": "Eldesign Poultry Farm Management App",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "concurrently \"npm run dev:renderer\" \"wait-on http://localhost:5173 && electron .\"",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "dev:renderer": "vite",
+    "build": "vite build && electron-builder",
+    "build:renderer": "vite build"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^9.4.3",
+    "dayjs": "^1.11.10",
+    "dotenv": "^18.0.8",
+    "nodemailer": "^10.1.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.3",
+    "recharts": "^2.12.2"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
+    "@types/better-sqlite3": "^7.6.8",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^29.4.6",
+    "electron-builder": "^24.13.3",
+    "vite": "^5.2.0",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.eldesign.poultry",
+    "productName": "Eldesign Poultry",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/main/**/*",
+      "src/preload/**/*",
+      "src/database/**/*",
+      "dist/renderer/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

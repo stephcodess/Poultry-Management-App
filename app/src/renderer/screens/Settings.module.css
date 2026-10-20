@@ -1,0 +1,352 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 900px;
+}
+
+/* ── Section shell ──────────────────────────────────────────────── */
+.section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 24px 18px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.sectionIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20.5px;
+  flex-shrink: 0;
+}
+
+.sectionHeadText { flex: 1; min-width: 0; }
+
+.sectionTitle {
+  font-size: 17.1px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 2px;
+}
+
+.sectionDesc {
+  font-size: 14.3px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.sectionBody {
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── Farm info grid ─────────────────────────────────────────────── */
+.farmGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.saveRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.savedMsg {
+  font-size: 14.8px;
+  color: var(--color-success);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.aiKeyHint {
+  font-size: 13.7px;
+  color: var(--color-text-muted);
+  margin-left: 4px;
+}
+
+/* ── Flock cards ────────────────────────────────────────────────── */
+.flockList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.flockCard {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+
+.flockCard:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.flockCardTop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+}
+
+.flockColorDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid rgba(0,0,0,0.08);
+}
+
+.flockCardName {
+  flex: 1;
+  font-weight: 600;
+  font-size: 16.0px;
+  color: var(--color-text);
+}
+
+.flockStatusBadge {
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 20px;
+}
+
+.flockStatusBadge.active {
+  background: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.flockStatusBadge.inactive {
+  background: var(--color-surface-alt);
+  color: var(--color-text-muted);
+}
+
+.retireSoonBadge {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-warning);
+  background: var(--color-warning-light);
+  border-radius: 20px;
+  padding: 2px 9px;
+}
+
+.flockCardBody {
+  padding: 16px;
+  background: #fafbfd;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.flockRow1 {
+  display: grid;
+  grid-template-columns: 1fr 130px 50px auto;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.flockRow2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 110px;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.fieldLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 5px;
+}
+
+.colorPickerWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.colorPicker {
+  width: 36px;
+  height: 34px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  cursor: pointer;
+  background: none;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14.3px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  padding-bottom: 7px;
+}
+
+.flockCardFooter {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+/* ── Add flock panel ────────────────────────────────────────────── */
+.addPanel {
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  background: var(--color-surface-alt);
+  display: grid;
+  grid-template-columns: 1fr 180px 50px auto;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+/* ── Egg prices table ───────────────────────────────────────────── */
+.priceTable {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.priceTableHead {
+  display: grid;
+  grid-template-columns: 1fr 1fr 120px;
+  gap: 0;
+  background: var(--color-surface-alt);
+  padding: 9px 16px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.priceRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 120px;
+  gap: 12px;
+  padding: 10px 16px;
+  align-items: center;
+  border-top: 1px solid var(--color-border);
+  transition: background 0.1s;
+}
+
+.priceRow:hover { background: var(--color-surface-alt); }
+
+.priceActions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.addPriceRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: flex-end;
+  padding: 14px 16px;
+  background: var(--color-surface-alt);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── App help ───────────────────────────────────────────────────── */
+.helpRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.helpText {
+  font-size: 14.8px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  max-width: 480px;
+}
+
+.syncStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-top: 10px;
+}
+.syncSpinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #0284c7;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.syncSuccess {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #166534;
+}
+.syncCounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.syncCount {
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.syncError {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #991b1b;
+}
+.lastSync {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,518 @@
+/* ═══════════════════════════════════════════════════════════════
+   AUTH SHELL — full-screen split layout
+   ═══════════════════════════════════════════════════════════════ */
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: #0f172a;
+}
+
+/* ══════════════════════════════════════════════
+   LEFT PANEL
+   ══════════════════════════════════════════════ */
+.panel {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+
+  /* Rich deep-teal-to-navy gradient */
+  background:
+    linear-gradient(160deg,
+      #020d1a 0%,
+      #051e3e 30%,
+      #0a2d5c 55%,
+      #0d3b7a 75%,
+      #071428 100%);
+}
+
+/* ── dot-grid texture overlay ── */
+.panel::before {
+  content: '';
+  position: absolute; inset: 0; z-index: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* ── soft colour glow at top-right corner ── */
+.panel::after {
+  content: '';
+  position: absolute;
+  top: -120px; right: -120px;
+  width: 520px; height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56,189,248,0.18) 0%, rgba(37,99,235,0.12) 40%, transparent 70%);
+  z-index: 0;
+  animation: glowPulse 6s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.7; transform: scale(1.08); }
+}
+
+/* ── green accent glow bottom-left ── */
+.panelGlowGreen {
+  position: absolute;
+  bottom: -80px; left: -80px;
+  width: 360px; height: 360px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34,197,94,0.13) 0%, transparent 65%);
+  z-index: 0;
+  animation: glowPulse 9s ease-in-out infinite 3s;
+}
+
+/* ── purple accent glow mid ── */
+.panelGlowPurple {
+  position: absolute;
+  top: 45%; left: 55%;
+  width: 220px; height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 65%);
+  z-index: 0;
+  animation: glowPulse 7s ease-in-out infinite 1.5s;
+}
+
+/* ── horizontal shimmer line ── */
+.panelShimmer {
+  position: absolute;
+  top: 38%; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(56,189,248,0.3) 30%, rgba(56,189,248,0.6) 50%, rgba(56,189,248,0.3) 70%, transparent 100%);
+  z-index: 1;
+  animation: shimmerMove 5s linear infinite;
+}
+@keyframes shimmerMove {
+  0%   { opacity: 0; transform: translateX(-100%); }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(100%); }
+}
+
+/* ── top-left logo bar ── */
+.panelTopBar {
+  position: relative; z-index: 3;
+  display: flex; align-items: center; gap: 10px;
+  padding: 28px 36px 0;
+}
+.panelTopLogo { font-size: 30px; line-height: 1; }
+.panelTopName {
+  font-size: 15px; font-weight: 800; color: #fff;
+  letter-spacing: -0.2px;
+}
+.panelTopSub { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 1px; }
+
+/* ── floating metric cards (top-right cluster) ── */
+.panelMetrics {
+  position: absolute;
+  top: 72px; right: 32px;
+  display: flex; flex-direction: column; gap: 10px;
+  z-index: 3;
+}
+.panelMetric {
+  background: rgba(255,255,255,0.07);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px;
+  min-width: 188px;
+  animation: cardFloat 6s ease-in-out infinite;
+}
+.panelMetric:nth-child(2) { animation-delay: 1.5s; animation-duration: 7s; }
+.panelMetric:nth-child(3) { animation-delay: 3s;   animation-duration: 8s; }
+
+@keyframes cardFloat {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+.panelMetricIcon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex-shrink: 0;
+}
+.panelMetricIcon.blue   { background: rgba(59,130,246,0.25); }
+.panelMetricIcon.green  { background: rgba(34,197,94,0.22); }
+.panelMetricIcon.amber  { background: rgba(245,158,11,0.22); }
+
+.panelMetricBody {}
+.panelMetricValue { font-size: 15px; font-weight: 800; color: #fff; }
+.panelMetricLabel { font-size: 10px; color: rgba(255,255,255,0.45); margin-top: 1px; }
+
+/* ── centre illustration / mascot card ── */
+.panelCenter {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -55%);
+  z-index: 2;
+  text-align: center;
+  animation: cardFloat 8s ease-in-out infinite 0.5s;
+}
+.panelMascotRing {
+  width: 130px; height: 130px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(56,189,248,0.18) 0%, rgba(37,99,235,0.1) 50%, transparent 75%);
+  border: 1.5px solid rgba(56,189,248,0.25);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 12px;
+  font-size: 70px; line-height: 1;
+  box-shadow: 0 0 40px rgba(56,189,248,0.15), 0 0 80px rgba(37,99,235,0.1);
+}
+.panelMascotTag {
+  display: inline-block;
+  background: rgba(56,189,248,0.15);
+  border: 1px solid rgba(56,189,248,0.3);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 11px; font-weight: 700;
+  color: #7dd3fc;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+
+/* ── bottom section ── */
+.panelBottom {
+  position: relative; z-index: 3;
+  margin-top: auto;
+  padding: 0 36px 32px;
+}
+
+.panelHeadline {
+  font-size: 32px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.6px;
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+.panelHeadlineAccent {
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.panelTagline {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.65;
+  max-width: 360px;
+  margin-bottom: 22px;
+}
+
+/* feature pills row */
+.panelPills {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 28px;
+}
+.panelPill {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  padding: 5px 13px;
+  font-size: 11px; font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  display: flex; align-items: center; gap: 5px;
+}
+.panelPillDot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: #38bdf8; flex-shrink: 0;
+}
+
+/* bottom divider + footer note */
+.panelDivider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  margin-bottom: 16px;
+}
+.panelFootNote {
+  font-size: 11px; color: rgba(255,255,255,0.28);
+  display: flex; align-items: center; gap: 6px;
+}
+.panelFootNote span { color: rgba(255,255,255,0.45); font-weight: 600; }
+
+/* ── Right panel: form side ── */
+.formSide {
+  flex: 1;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 52px 64px;
+  overflow-y: auto;
+  position: relative;
+  min-width: 0;
+}
+
+/* brand strip at very top of form side */
+.formSideTop {
+  position: absolute;
+  top: 28px; right: 32px;
+  display: flex; align-items: center; gap: 8px;
+}
+.formSideVersion {
+  font-size: 11px;
+  color: #94a3b8;
+  background: #f1f5f9;
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+
+/* cap content width inside the 50% right panel */
+.formInner {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* ── Form heading ── */
+.formTitle {
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.4px;
+  margin-bottom: 6px;
+}
+.formSubtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin-bottom: 32px;
+  line-height: 1.5;
+}
+
+/* ── Fields ── */
+.form { display: flex; flex-direction: column; gap: 16px; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+.input {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 14px;
+  color: #0f172a;
+  outline: none;
+  background: #f8fafc;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  width: 100%;
+}
+.input:focus {
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+.input::placeholder { color: #94a3b8; }
+
+/* ── Primary button ── */
+.btn {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 13px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 4px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 48px;
+  font-family: inherit;
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+  box-shadow: 0 4px 14px rgba(37,99,235,0.35);
+}
+.btn:hover:not(:disabled) {
+  opacity: 0.93;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(37,99,235,0.4);
+}
+.btn:active:not(:disabled) { transform: translateY(0); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+
+/* ── Ghost / back button ── */
+.ghostBtn {
+  background: none;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 11px;
+  font-size: 14px;
+  color: #475569;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.ghostBtn:hover { border-color: #cbd5e1; background: #f8fafc; color: #0f172a; }
+
+/* ── Link button ── */
+.link {
+  background: none; border: none;
+  color: #2563eb; font-size: 13px;
+  cursor: pointer; padding: 0;
+  font-family: inherit; text-decoration: underline;
+}
+.link:hover { color: #1d4ed8; }
+
+/* ── Error / info banners ── */
+.error {
+  background: #fef2f2; color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 10px; padding: 11px 14px;
+  font-size: 13px; font-weight: 500;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+
+/* ── Greeting chip (after email recognised) ── */
+.greetingChip {
+  display: flex; align-items: center; gap: 12px;
+  background: #f8fafc; border: 1.5px solid #e2e8f0;
+  border-radius: 12px; padding: 12px 16px; margin-bottom: 4px;
+}
+.greetingAvatar {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #fff; font-size: 16px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.greetingName { font-size: 15px; font-weight: 700; color: #0f172a; }
+.greetingEmail { font-size: 12px; color: #64748b; margin-top: 1px; }
+.greetingChange {
+  margin-left: auto; background: none; border: none;
+  font-size: 12px; color: #2563eb; cursor: pointer; font-family: inherit;
+  text-decoration: underline; flex-shrink: 0;
+}
+
+/* ── Setup / first-time banner ── */
+.setupBanner {
+  background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+  border: 1px solid #bfdbfe;
+  border-radius: 12px; padding: 14px 16px;
+  font-size: 13px; color: #1e40af; line-height: 1.6;
+}
+.setupBannerTitle { font-weight: 700; margin-bottom: 3px; font-size: 14px; }
+
+.emailTag {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: #475569;
+  background: #f1f5f9; border-radius: 8px; padding: 8px 12px;
+}
+
+/* ── Divider ── */
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  color: #cbd5e1; font-size: 12px; margin: 4px 0;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1; height: 1px; background: #e2e8f0;
+}
+
+/* ── Spinner ── */
+.spinner {
+  display: inline-block; width: 18px; height: 18px;
+  border: 3px solid rgba(255,255,255,0.35);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ═══════════════════════════════════════════════════════════════
+   ONBOARDING FLOW
+   ═══════════════════════════════════════════════════════════════ */
+.obProgress {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 28px;
+}
+.obStep {
+  flex: 1; height: 4px; border-radius: 4px;
+  background: #e2e8f0; transition: background 0.3s;
+}
+.obStep.done { background: #22c55e; }
+.obStep.active { background: #2563eb; }
+
+.obStepLabel {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: #94a3b8; margin-bottom: 6px;
+}
+
+/* Mode cards (Local vs Cloud) */
+.modeCards {
+  display: flex; flex-direction: column; gap: 12px;
+  margin-bottom: 4px;
+}
+.modeCard {
+  border: 2px solid #e2e8f0;
+  border-radius: 12px; padding: 16px 18px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  display: flex; align-items: flex-start; gap: 14px;
+  text-align: left; background: #fff; width: 100%;
+  font-family: inherit;
+}
+.modeCard:hover { border-color: #93c5fd; background: #f8fafc; }
+.modeCard.selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+.modeCardIcon { font-size: 26px; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+.modeCardBody {}
+.modeCardTitle { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 3px; }
+.modeCardDesc { font-size: 12px; color: #64748b; line-height: 1.5; }
+.modeCardBadge {
+  margin-left: auto; flex-shrink: 0; align-self: flex-start;
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.modeCardBadge.recommended { background: #dcfce7; color: #16a34a; }
+.modeCardBadge.coming     { background: #f1f5f9; color: #94a3b8; }
+
+/* Farm name field in onboarding */
+.obHint {
+  font-size: 12px; color: #94a3b8; margin-top: -8px; margin-bottom: 4px;
+}
+
+/* Bird count selector */
+.birdCountGrid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+.birdCountOption {
+  border: 2px solid #e2e8f0; border-radius: 10px;
+  padding: 10px 8px; text-align: center; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: #fff; font-family: inherit;
+}
+.birdCountOption:hover { border-color: #93c5fd; background: #f8fafc; }
+.birdCountOption.selected { border-color: #2563eb; background: #eff6ff; }
+.birdCountNum { font-size: 18px; font-weight: 800; color: #0f172a; }
+.birdCountLabel { font-size: 10px; color: #64748b; margin-top: 2px; }
+
+/* Welcome/done screen */
+.welcomeDone {
+  text-align: center; padding: 8px 0;
+}
+.welcomeIcon { font-size: 56px; margin-bottom: 16px; line-height: 1; }
+.welcomeTitle { font-size: 24px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+.welcomeDesc { font-size: 14px; color: #64748b; line-height: 1.6; margin-bottom: 28px; }
+.welcomeSummary {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+  padding: 14px 18px; margin-bottom: 24px; text-align: left;
+}
+.welcomeSummaryRow {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0; font-size: 13px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.welcomeSummaryRow:last-child { border-bottom: none; }
+.welcomeSummaryLabel { color: #64748b; }
+.welcomeSummaryValue { font-weight: 600; color: #0f172a; }
+
+/* ── Responsive collapse: hide left panel on narrow windows ── */
+@media (max-width: 900px) {
+  .panel { display: none; }
+  .formSide { padding: 40px 32px; }
+}
