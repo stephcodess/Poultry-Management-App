@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import Button from '../components/common/Button'
-import FormField, { Input } from '../components/common/FormField'
+import FormField, { Input, Select } from '../components/common/FormField'
 import { useTourLauncher } from '../components/tour/TourGuide'
 import styles from './Settings.module.css'
 
@@ -180,26 +180,7 @@ export default function Settings() {
           desc="Sync your farm data to Supabase so it can be viewed on the web viewer app."
         />
         <div className={styles.sectionBody}>
-          <div className={styles.farmGrid}>
-            <FormField label="Supabase Project URL" hint="e.g. https://xxxx.supabase.co">
-              <Input
-                type="text"
-                placeholder="https://xxxx.supabase.co"
-                value={settings.supabase_url || ''}
-                onChange={e => setSettings(s => ({ ...s, supabase_url: e.target.value }))}
-              />
-            </FormField>
-            <FormField label="Supabase Anon Key" hint="Found in Project Settings → API">
-              <Input
-                type="text"
-                placeholder="eyJ..."
-                value={settings.supabase_anon_key || ''}
-                onChange={e => setSettings(s => ({ ...s, supabase_anon_key: e.target.value }))}
-              />
-            </FormField>
-          </div>
           <div className={styles.saveRow}>
-            <Button onClick={handleSaveSettings}>Save Keys</Button>
             <Button variant="secondary" onClick={handleSync} disabled={syncing}>
               {syncing ? 'Syncing…' : '☁ Sync Now'}
             </Button>
@@ -482,25 +463,40 @@ export default function Settings() {
           iconBg="#f0fdf4"
           iconColor="#16a34a"
           title="AI Assistant"
-          desc="Paste your free Gemini API key to enable the AI chat feature. Get one free at aistudio.google.com."
+          desc="Add API keys for Gemini and/or OpenAI. Use 'Auto' to fall back to the other model when one is unavailable."
         />
         <div className={styles.sectionBody}>
           <div className={styles.farmGrid}>
-            <FormField label="Gemini API Key">
+            <FormField label="Gemini API Key" hint="Free at aistudio.google.com · 1,500 req/day, no credit card">
               <Input
                 type="password"
-                placeholder="Paste your API key here"
+                placeholder="Paste Gemini key here"
                 value={settings.gemini_api_key || ''}
                 onChange={e => setSettings(s => ({ ...s, gemini_api_key: e.target.value }))}
               />
             </FormField>
+            <FormField label="OpenAI API Key" hint="platform.openai.com · Uses gpt-4o-mini (very cheap)">
+              <Input
+                type="password"
+                placeholder="Paste OpenAI key here"
+                value={settings.openai_api_key || ''}
+                onChange={e => setSettings(s => ({ ...s, openai_api_key: e.target.value }))}
+              />
+            </FormField>
+            <FormField label="Preferred Model">
+              <Select
+                value={settings.ai_model || 'auto'}
+                onChange={e => setSettings(s => ({ ...s, ai_model: e.target.value }))}
+              >
+                <option value="auto">Auto (try Gemini first, fall back to OpenAI)</option>
+                <option value="gemini">Gemini only</option>
+                <option value="openai">OpenAI only</option>
+              </Select>
+            </FormField>
           </div>
           <div className={styles.saveRow}>
-            <Button onClick={handleSaveSettings}>Save Key</Button>
+            <Button onClick={handleSaveSettings}>Save Keys</Button>
             {saved && <span className={styles.savedMsg}>✓ Saved</span>}
-            <span className={styles.aiKeyHint}>
-              Free tier: 1,500 requests/day · No credit card needed
-            </span>
           </div>
         </div>
       </section>

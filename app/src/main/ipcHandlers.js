@@ -44,13 +44,13 @@ function scheduleAutoSync() {
   clearTimeout(_autoSyncTimer)
   _autoSyncTimer = setTimeout(async () => {
     const db = getDb()
-    const urlRow = db.prepare("SELECT value FROM settings WHERE key = 'supabase_url'").get()
-    const keyRow = db.prepare("SELECT value FROM settings WHERE key = 'supabase_anon_key'").get()
-    if (!urlRow?.value || !keyRow?.value) return
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_ANON_KEY
+    if (!supabaseUrl || !supabaseKey) return
 
     try {
       const { syncToSupabase } = require('./supabaseSync')
-      const result = await syncToSupabase(db, urlRow.value, keyRow.value)
+      const result = await syncToSupabase(db, supabaseUrl, supabaseKey)
       if (result.success) {
         const iso = result.syncedAt || new Date().toISOString()
         db.prepare(`
@@ -1141,13 +1141,77 @@ function registerHealthHandlers(ipcMain) {
 
 // ─── AI CHAT ──────────────────────────────────────────────────────────────────
 
+async function callGemini(apiKey, systemPrompt, messages) {
+  const contents = messages.length === 1
+    ? [{ role: 'user', parts: [{ text: systemPrompt + '\n\nUser: ' + messages[0].content }] }]
+    : [
+        { role: 'user', parts: [{ text: systemPrompt }] },
+        { role: 'model', parts: [{ text: 'Understood. I have full access to all farm records across every month. How can I help?' }] },
+        ...messages.map(m => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: m.content }],
+        }))
+      ]
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents }) }
+  )
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    const status = response.status
+    const msg = err?.error?.message || `Gemini API error: ${status}`
+    const retryable = status === 429 || status === 503 || (msg && (msg.includes('overloaded') || msg.includes('high demand') || msg.includes('quota')))
+    return { error: true, retryable, message: msg }
+  }
+
+  const data = await response.json()
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  if (!text) return { error: true, retryable: false, message: 'No response from Gemini.' }
+  return { success: true, reply: text, model: 'Gemini' }
+}
+
+async function callOpenAI(apiKey, systemPrompt, messages) {
+  const chatMessages = [
+    { role: 'system', content: systemPrompt },
+    ...messages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }))
+  ]
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: 'gpt-4o-mini', messages: chatMessages, max_tokens: 1024 })
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    const status = response.status
+    const msg = err?.error?.message || `OpenAI API error: ${status}`
+    const retryable = status === 429 || status === 503
+    return { error: true, retryable, message: msg }
+  }
+
+  const data = await response.json()
+  const text = data?.choices?.[0]?.message?.content
+  if (!text) return { error: true, retryable: false, message: 'No response from OpenAI.' }
+  return { success: true, reply: text, model: 'OpenAI' }
+}
+
 function registerAIHandlers(ipcMain) {
   ipcMain.handle('ai:chat', async (_, { messages }) => {
     const db = getDb()
 
-    const apiKeyRow = db.prepare("SELECT value FROM settings WHERE key = 'gemini_api_key'").get()
-    const apiKey = apiKeyRow?.value
-    if (!apiKey) return { error: 'no_key', message: 'No Gemini API key configured. Please add it in Settings.' }
+    const geminiKeyRow = db.prepare("SELECT value FROM settings WHERE key = 'gemini_api_key'").get()
+    const openaiKeyRow = db.prepare("SELECT value FROM settings WHERE key = 'openai_api_key'").get()
+    const modelPrefRow = db.prepare("SELECT value FROM settings WHERE key = 'ai_model'").get()
+    const geminiKey = geminiKeyRow?.value?.trim() || ''
+    const openaiKey = openaiKeyRow?.value?.trim() || ''
+    const modelPref = modelPrefRow?.value || 'auto'
+
+    if (!geminiKey && !openaiKey) {
+      return { error: 'no_key', message: 'No API key configured. Go to Settings → AI Assistant to add a Gemini or OpenAI key.' }
+    }
 
     // ── All-time data ──────────────────────────────────────────────
     const flocks = db.prepare(
@@ -1262,40 +1326,37 @@ Formatting rules:
 - Do NOT use horizontal rules (--- or ***)
 - Do NOT use tables`
 
-    const contents = messages.length === 1
-      ? [{ role: 'user', parts: [{ text: systemPrompt + '\n\nUser: ' + messages[0].content }] }]
-      : [
-          { role: 'user', parts: [{ text: systemPrompt }] },
-          { role: 'model', parts: [{ text: 'Understood. I have full access to all farm records across every month. How can I help?' }] },
-          ...messages.map(m => ({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.content }],
-          }))
-        ]
+    // Determine call order based on preference
+    const useGeminiFirst = modelPref === 'gemini' || (modelPref === 'auto' && !!geminiKey)
+    const useOpenAIFirst = modelPref === 'openai' || (modelPref === 'auto' && !geminiKey && !!openaiKey)
 
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents }),
+      if (useGeminiFirst && geminiKey) {
+        const result = await callGemini(geminiKey, systemPrompt, messages)
+        if (result.success) return { success: true, reply: result.reply, model: 'Gemini' }
+        // Fall back to OpenAI if retryable (rate-limited/overloaded) and key exists
+        if (result.retryable && openaiKey && modelPref !== 'gemini') {
+          const fallback = await callOpenAI(openaiKey, systemPrompt, messages)
+          if (fallback.success) return { success: true, reply: fallback.reply, model: 'OpenAI (fallback)' }
+          return { error: 'api_error', message: `Gemini: ${result.message} · OpenAI: ${fallback.message}` }
         }
-      )
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}))
-        const msg = err?.error?.message || `Gemini API error: ${response.status}`
-        return { error: 'api_error', message: msg }
+        return { error: 'api_error', message: result.message }
       }
 
-      const data = await response.json()
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
-      if (!text) return { error: 'empty_response', message: 'No response from Gemini.' }
+      if ((useOpenAIFirst || modelPref === 'openai') && openaiKey) {
+        const result = await callOpenAI(openaiKey, systemPrompt, messages)
+        if (result.success) return { success: true, reply: result.reply, model: 'OpenAI' }
+        if (result.retryable && geminiKey && modelPref !== 'openai') {
+          const fallback = await callGemini(geminiKey, systemPrompt, messages)
+          if (fallback.success) return { success: true, reply: fallback.reply, model: 'Gemini (fallback)' }
+          return { error: 'api_error', message: `OpenAI: ${result.message} · Gemini: ${fallback.message}` }
+        }
+        return { error: 'api_error', message: result.message }
+      }
 
-      return { success: true, reply: text }
+      return { error: 'no_key', message: 'No API key available for the selected model.' }
     } catch (err) {
-      return { error: 'network_error', message: 'Could not reach Gemini. Check your internet connection.' }
+      return { error: 'network_error', message: 'Could not reach AI service. Check your internet connection.' }
     }
   })
 }
@@ -1464,13 +1525,13 @@ function registerDebtorsHandlers(ipcMain) {
 function registerSyncHandlers(ipcMain) {
   ipcMain.handle('sync:toSupabase', async () => {
     const db = getDb()
-    const urlRow = db.prepare("SELECT value FROM settings WHERE key = 'supabase_url'").get()
-    const keyRow = db.prepare("SELECT value FROM settings WHERE key = 'supabase_anon_key'").get()
-    if (!urlRow?.value || !keyRow?.value) {
-      return { success: false, error: 'Supabase URL and anon key not configured. Go to Settings → Cloud Sync.' }
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_ANON_KEY
+    if (!supabaseUrl || !supabaseKey) {
+      return { success: false, error: 'Supabase URL and anon key not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY to the .env file.' }
     }
     const { syncToSupabase } = require('./supabaseSync')
-    return syncToSupabase(db, urlRow.value, keyRow.value)
+    return syncToSupabase(db, supabaseUrl, supabaseKey)
   })
 
   ipcMain.handle('sync:getLastSync', () => {

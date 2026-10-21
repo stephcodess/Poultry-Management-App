@@ -144,12 +144,16 @@ export default function AIChat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [hasKey, setHasKey] = useState(null)
+  const [activeModel, setActiveModel] = useState('')
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
   useEffect(() => {
     window.api.settings.get().then(s => {
-      setHasKey(!!(s.gemini_api_key && s.gemini_api_key.trim()))
+      setHasKey(
+        !!(s.gemini_api_key && s.gemini_api_key.trim()) ||
+        !!(s.openai_api_key && s.openai_api_key.trim())
+      )
     })
   }, [])
 
@@ -181,6 +185,7 @@ export default function AIChat() {
 
     const result = await window.api.ai.chat({ messages: newMessages })
 
+    if (result.model) setActiveModel(result.model)
     setMessages(prev => {
       const without = prev.filter(m => !m.loading)
       if (result.error) {
@@ -220,7 +225,9 @@ export default function AIChat() {
             <span className={styles.panelHeaderIcon}>🤖</span>
             <div>
               <div className={styles.panelTitle}>AI Farm Assistant</div>
-              <div className={styles.panelSub}>Ask anything — any month or all-time</div>
+              <div className={styles.panelSub}>
+                {activeModel ? `Powered by ${activeModel}` : 'Ask anything — any month or all-time'}
+              </div>
             </div>
           </div>
           <div className={styles.panelHeaderActions}>
@@ -236,7 +243,7 @@ export default function AIChat() {
 
         {!hasKey && (
           <div className={styles.noKeyBanner}>
-            ⚠️ No API key. Go to <strong>Settings → AI Assistant</strong> to add your free Gemini key.
+            ⚠️ No API key. Go to <strong>Settings → AI Assistant</strong> to add a Gemini or OpenAI key.
           </div>
         )}
 
