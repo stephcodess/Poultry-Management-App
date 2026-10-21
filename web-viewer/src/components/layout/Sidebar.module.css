@@ -7,6 +7,7 @@
   flex-shrink: 0;
   overflow: hidden;
   padding: 0;
+  position: relative;
 }
 
 .brand {
@@ -148,4 +149,44 @@
 
 .logoutBtn:hover {
   color: rgba(255,255,255,0.8);
+}
+
+/* Close button — hidden by default, shown on mobile */
+.closeBtn {
+  display: none;
+  position: absolute;
+  top: 16px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.5);
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.closeBtn:hover {
+  color: rgba(255,255,255,0.9);
+}
+
+/* ── Mobile responsive ── */
+@media (max-width: 767px) {
+  .sidebar {
+    position: fixed;
+    left: -100%;
+    top: 0;
+    height: 100vh;
+    z-index: 50;
+    transition: left 0.25s ease;
+  }
+
+  .sidebarOpen {
+    left: 0;
+  }
+
+  .closeBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 }

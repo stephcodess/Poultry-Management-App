@@ -10,12 +10,14 @@ const TITLES = {
   '/dashboard': 'Dashboard',
   '/production': 'Production',
   '/sales': 'Sales',
+  '/expenses': 'Expenses',
+  '/debtors': 'Debtors',
   '/feed': 'Feed Log',
   '/health': 'Health Records',
   '/mortality': 'Flock Movement',
 }
 
-export default function Header() {
+export default function Header({ onMenuToggle }) {
   const { pathname } = useLocation()
   const { monthYear, setMonthYear } = useMonth()
   const [online, setOnline] = useState(true)
@@ -36,6 +38,7 @@ export default function Header() {
 
   return (
     <header className={styles.header}>
+      <button className={styles.hamburger} onClick={onMenuToggle} aria-label="Open menu">☰</button>
       <div className={styles.title}>{title}</div>
       <div className={styles.center}>
         <button className={styles.monthBtn} onClick={prevMonth}>‹</button>
@@ -43,7 +46,7 @@ export default function Header() {
         <button className={styles.monthBtn} onClick={nextMonth}>›</button>
       </div>
       <div className={styles.right}>
-        <span className={`${styles.badge} ${styles.readOnly}`}>Read-only view</span>
+        <span className={`${styles.badge} ${styles.readOnly} ${styles.readOnlyBadge}`}>Read-only view</span>
         <span className={`${styles.badge} ${online ? styles.online : styles.offline}`}>
           {online ? '🟢 Live' : '🔴 Offline'}
         </span>

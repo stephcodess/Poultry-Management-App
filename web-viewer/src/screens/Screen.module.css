@@ -1,8 +1,9 @@
 .page {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  height: auto;
+  min-height: 100%;
+  overflow-y: auto;
   font-family: var(--font, system-ui, sans-serif);
   gap: 0;
 }
@@ -213,4 +214,69 @@
 .dashCardSub {
   font-size: 12px;
   color: var(--color-text-secondary, #6b7280);
+}
+
+/* ── Responsive ── */
+.statsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px;
+}
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+}
+.cardLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+.cardValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+.cardSub {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+.tableCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin: 0 16px 16px;
+}
+.tableHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tableTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+@media (max-width: 767px) {
+  .summaryGrid2 { grid-template-columns: 1fr 1fr; padding: 12px; }
+  .summaryGrid3 { grid-template-columns: 1fr 1fr; padding: 12px; }
+  .summaryGrid4 { grid-template-columns: 1fr 1fr; padding: 12px; }
+  .summaryBar { padding: 12px; gap: 8px; }
+  .sectionTitle { padding: 12px 12px 4px; }
+  .tableWrapper { padding: 12px; }
+  .statsRow { padding: 12px; gap: 8px; }
+  .tableCard { margin: 0 12px 12px; }
 }

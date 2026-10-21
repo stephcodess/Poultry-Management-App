@@ -8,6 +8,8 @@ const NAV_ITEMS = [
   { divider: true, label: 'FARM RECORDS' },
   { to: '/production', label: 'Production',     icon: '🥚' },
   { to: '/sales',      label: 'Sales',          icon: '🛒' },
+  { to: '/expenses',   label: 'Expenses',       icon: '💸' },
+  { to: '/debtors',    label: 'Debtors',        icon: '📋' },
   { divider: true, label: 'FLOCK HEALTH' },
   { to: '/mortality',  label: 'Flock Movement', icon: '🐓' },
   { to: '/feed',       label: 'Feed Log',       icon: '🌾' },
@@ -21,13 +23,15 @@ const ROLE_COLORS = {
   viewer: { bg: '#f1f5f9', color: '#475569' },
 }
 
-export default function Sidebar() {
+export default function Sidebar({ menuOpen, onMenuToggle }) {
   const { session, logout } = useAuth()
   const roleStyle = ROLE_COLORS[session?.role] || ROLE_COLORS.viewer
   const initials = session?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'
 
   return (
-    <aside className={styles.sidebar}>
+    <aside className={`${styles.sidebar} ${menuOpen ? styles.sidebarOpen : ''}`}>
+      <button className={styles.closeBtn} onClick={onMenuToggle} aria-label="Close menu">✕</button>
+
       <div className={styles.brand}>
         <div className={styles.brandIcon}>🐔</div>
         <div>
@@ -45,6 +49,7 @@ export default function Sidebar() {
               key={item.to}
               to={item.to}
               className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
+              onClick={() => onMenuToggle && menuOpen && onMenuToggle()}
             >
               <span className={styles.navIcon}>{item.icon}</span>
               <span>{item.label}</span>

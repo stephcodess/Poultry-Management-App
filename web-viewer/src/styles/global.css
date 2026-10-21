@@ -31,6 +31,10 @@
   --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+@media (max-width: 767px) {
+  :root { --sidebar-width: 240px; }
+}
+
 html, body, #root {
   height: 100%;
   font-family: var(--font);

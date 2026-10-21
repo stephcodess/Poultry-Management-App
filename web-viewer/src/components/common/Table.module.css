@@ -106,3 +106,8 @@
   padding: 0 4px;
   user-select: none;
 }
+
+@media (max-width: 767px) {
+  .wrapper { border-radius: 0; border-left: none; border-right: none; }
+  .th, .td { padding: 9px 10px; font-size: 13px; }
+}

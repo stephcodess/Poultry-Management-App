@@ -10,6 +10,8 @@ import Sales from './screens/Sales'
 import FeedLog from './screens/FeedLog'
 import HealthRecords from './screens/HealthRecords'
 import Mortality from './screens/Mortality'
+import Expenses from './screens/Expenses'
+import Debtors from './screens/Debtors'
 import styles from './App.module.css'
 
 function AppContent() {
@@ -27,6 +29,8 @@ function AppContent() {
           <Route path="/feed" element={<FeedLog />} />
           <Route path="/health" element={<HealthRecords />} />
           <Route path="/mortality" element={<Mortality />} />
+          <Route path="/expenses" element={<Expenses />} />
+          <Route path="/debtors" element={<Debtors />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AppShell>
