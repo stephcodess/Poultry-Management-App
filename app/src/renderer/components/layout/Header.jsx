@@ -23,12 +23,6 @@ const TITLES = {
   '/profile': 'My Profile',
 }
 
-const ROLE_BADGE_STYLES = {
-  owner: { background: '#ede9fe', color: '#6d28d9' },
-  admin: { background: '#dbeafe', color: '#1d4ed8' },
-  editor: { background: '#dcfce7', color: '#16a34a' },
-  viewer: { background: '#f1f5f9', color: '#475569' },
-}
 
 export default function Header() {
   const { pathname } = useLocation()
@@ -90,8 +84,6 @@ export default function Header() {
     }
   }
 
-  const roleBadgeStyle = ROLE_BADGE_STYLES[session?.role] || {}
-
   return (
     <>
       <header className={styles.header}>
@@ -134,13 +126,9 @@ export default function Header() {
             </span>
           )}
           {session && (
-            <div className={styles.userArea}>
-              <span className={styles.userName}>{session.name}</span>
-              <span className={styles.roleBadge} style={roleBadgeStyle}>{session.role}</span>
-              <button className={styles.logoutBtn} onClick={logout} title="Sign out">
-                Sign Out
-              </button>
-            </div>
+            <button className={styles.logoutBtn} onClick={logout} title="Sign out">
+              Sign Out
+            </button>
           )}
         </div>
       </header>

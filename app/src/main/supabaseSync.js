@@ -1,8 +1,11 @@
 const TABLES = [
+  { name: 'users', conflictKey: 'id', exclude: ['invite_token', 'invite_expires_at'] },
   { name: 'flocks', conflictKey: 'id', exclude: [] },
   { name: 'flock_movements', conflictKey: 'id', exclude: [] },
   { name: 'production', conflictKey: 'id', exclude: ['total_eggs', 'daily_yield_pct'] },
-  { name: 'sales', conflictKey: 'id', exclude: ['total_revenue'] },
+  { name: 'credit_customers', conflictKey: 'id', exclude: [] },
+  { name: 'credit_sales', conflictKey: 'id', exclude: ['amount_owed'] },
+  { name: 'sales', conflictKey: 'id', exclude: ['total_revenue', 'credit_customer_id', 'credit_sale_id'] },
   { name: 'domestic_usage', conflictKey: 'id', exclude: [] },
   { name: 'expenses', conflictKey: 'id', exclude: [] },
   { name: 'feed_log', conflictKey: 'id', exclude: ['total_cost'] },
@@ -10,10 +13,7 @@ const TABLES = [
   { name: 'monthly_balance', conflictKey: 'month_year', exclude: [] },
   { name: 'opening_stock', conflictKey: 'month_year,flock_id', exclude: [] },
   { name: 'egg_prices', conflictKey: 'id', exclude: [] },
-  { name: 'settings', conflictKey: 'key', exclude: [] },
-  { name: 'users', conflictKey: 'id', exclude: ['invite_token', 'invite_expires_at'] },
-  { name: 'credit_customers', conflictKey: 'id', exclude: [] },
-  { name: 'credit_sales', conflictKey: 'id', exclude: ['amount_owed'] },
+  { name: 'settings', conflictKey: 'key', exclude: [], remoteTable: 'app_settings' },
   { name: 'debt_payments', conflictKey: 'id', exclude: [] },
 ]
 
@@ -52,24 +52,25 @@ async function syncToSupabase(db, supabaseUrl, supabaseKey) {
   const counts = {}
   const failedTables = []
 
-  for (const { name, conflictKey, exclude } of TABLES) {
+  for (const { name, conflictKey, exclude, remoteTable } of TABLES) {
+    const target = remoteTable || name
     try {
       const rows = db.prepare(`SELECT * FROM ${name}`).all()
       const cleaned = stripColumns(rows, exclude)
 
       for (let i = 0; i < cleaned.length; i += 500) {
-        await upsertChunk(supabaseUrl, name, conflictKey, cleaned.slice(i, i + 500), headers)
+        await upsertChunk(supabaseUrl, target, conflictKey, cleaned.slice(i, i + 500), headers)
       }
 
       counts[name] = cleaned.length
     } catch (err) {
       console.error(`[supabaseSync] Failed to sync table "${name}":`, err.message)
-      failedTables.push(name)
+      failedTables.push(`${name} (${err.message})`)
     }
   }
 
   if (failedTables.length > 0) {
-    return { success: false, error: `Failed to sync: ${failedTables.join(', ')}`, failedTables }
+    return { success: false, error: `Failed to sync:\n${failedTables.join('\n')}`, failedTables }
   }
 
   return { success: true, counts, syncedAt: new Date().toISOString() }

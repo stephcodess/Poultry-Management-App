@@ -202,7 +202,7 @@ export default function Settings() {
             </div>
           )}
           {syncResult && !syncResult.ok && (
-            <div className={styles.syncError}>{syncResult.error}</div>
+            <div className={styles.syncError} style={{ whiteSpace: 'pre-wrap' }}>{syncResult.error}</div>
           )}
           {lastSync && !syncing && (
             <div className={styles.lastSync}>Last synced: {new Date(lastSync).toLocaleString()}</div>

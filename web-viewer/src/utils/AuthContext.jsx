@@ -17,10 +17,10 @@ export function AuthProvider({ children }) {
       .from('users')
       .select('id, name, email, role, is_active, password_hash')
       .eq('email', email)
-      .eq('is_active', 1)
       .single()
 
     if (error || !data) return { error: 'Invalid email or password.' }
+    if (!data.is_active) return { error: 'Account is inactive.' }
     if (!data.password_hash) return { error: 'Account not yet activated.' }
 
     const valid = await bcrypt.compare(password, data.password_hash)

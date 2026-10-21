@@ -1,11 +1,8 @@
 -- ============================================================
 -- Eldesign Poultry Farm — Supabase (PostgreSQL) Schema
 -- Run this in the Supabase SQL Editor before using sync.
+-- Drop and recreate if re-running: run the DROP block first.
 -- ============================================================
-
--- Enable RLS (Row Level Security) — anon key gets read-only access
--- Auth is handled in the app itself, not via Supabase Auth.
-
 
 -- ─── USERS ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
@@ -23,7 +20,6 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
--- Anon can read users (needed for web viewer login)
 CREATE POLICY "anon read users" ON users FOR SELECT USING (true);
 
 
@@ -52,6 +48,10 @@ CREATE TABLE IF NOT EXISTS flocks (
   is_active          INTEGER NOT NULL DEFAULT 1,
   sort_order         INTEGER NOT NULL DEFAULT 0,
   initial_bird_count INTEGER NOT NULL DEFAULT 0,
+  date_acquired      TEXT,
+  breed              TEXT,
+  expected_lay_end   TEXT,
+  target_yield_pct   REAL NOT NULL DEFAULT 80,
   created_at         TEXT
 );
 
@@ -77,8 +77,6 @@ CREATE POLICY "anon read flock_movements" ON flock_movements FOR SELECT USING (t
 
 
 -- ─── PRODUCTION ──────────────────────────────────────────────
--- NOTE: total_eggs and daily_yield_pct are computed in SQLite as GENERATED ALWAYS columns.
--- In Postgres we store them as plain columns (synced from the Electron app).
 CREATE TABLE IF NOT EXISTS production (
   id              BIGINT PRIMARY KEY,
   date            TEXT NOT NULL,
@@ -98,21 +96,58 @@ ALTER TABLE production ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read production" ON production FOR SELECT USING (true);
 
 
--- ─── SALES ───────────────────────────────────────────────────
--- total_revenue is a GENERATED column in SQLite; stored as plain column here.
-CREATE TABLE IF NOT EXISTS sales (
+-- ─── CREDIT CUSTOMERS (must come before sales + credit_sales) ─
+CREATE TABLE IF NOT EXISTS credit_customers (
+  id         BIGINT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  phone      TEXT,
+  notes      TEXT,
+  created_at TEXT,
+  updated_at TEXT
+);
+
+ALTER TABLE credit_customers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon read credit_customers" ON credit_customers FOR SELECT USING (true);
+
+
+-- ─── CREDIT SALES (must come before sales) ───────────────────
+CREATE TABLE IF NOT EXISTS credit_sales (
   id              BIGINT PRIMARY KEY,
   date            TEXT NOT NULL,
   month_year      TEXT NOT NULL,
-  egg_size        TEXT NOT NULL,
+  customer_id     BIGINT NOT NULL REFERENCES credit_customers(id) ON DELETE RESTRICT,
+  egg_size        TEXT NOT NULL DEFAULT 'Medium',
   price_per_crate REAL NOT NULL DEFAULT 0,
-  flock_id        BIGINT REFERENCES flocks(id) ON DELETE SET NULL,
-  layer_type      TEXT,
   crates          INTEGER NOT NULL DEFAULT 0,
   pieces          INTEGER NOT NULL DEFAULT 0,
-  total_revenue   REAL,
+  amount_owed     REAL,
+  amount_paid     REAL NOT NULL DEFAULT 0,
+  status          TEXT NOT NULL DEFAULT 'unpaid',
+  notes           TEXT,
   created_at      TEXT,
   updated_at      TEXT
+);
+
+ALTER TABLE credit_sales ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon read credit_sales" ON credit_sales FOR SELECT USING (true);
+
+
+-- ─── SALES ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS sales (
+  id                 BIGINT PRIMARY KEY,
+  date               TEXT NOT NULL,
+  month_year         TEXT NOT NULL,
+  egg_size           TEXT NOT NULL,
+  price_per_crate    REAL NOT NULL DEFAULT 0,
+  flock_id           BIGINT REFERENCES flocks(id) ON DELETE SET NULL,
+  layer_type         TEXT,
+  crates             INTEGER NOT NULL DEFAULT 0,
+  pieces             INTEGER NOT NULL DEFAULT 0,
+  total_revenue      REAL,
+  payment_status     TEXT NOT NULL DEFAULT 'cash',
+  buyer_name         TEXT,
+  created_at         TEXT,
+  updated_at         TEXT
 );
 
 ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
@@ -128,7 +163,6 @@ CREATE TABLE IF NOT EXISTS expenses (
   description    TEXT,
   payment_method TEXT DEFAULT 'Cash',
   amount         REAL NOT NULL DEFAULT 0,
-  -- Feed purchase fields (populated when category = 'Feed')
   feed_type      TEXT,
   quantity_kg    REAL,
   bags           REAL,
@@ -160,7 +194,6 @@ CREATE POLICY "anon read domestic_usage" ON domestic_usage FOR SELECT USING (tru
 
 
 -- ─── FEED LOG ────────────────────────────────────────────────
--- Records daily feed consumption per flock. Feed purchases are recorded in expenses.
 CREATE TABLE IF NOT EXISTS feed_log (
   id          BIGINT PRIMARY KEY,
   date        TEXT NOT NULL,
@@ -168,6 +201,9 @@ CREATE TABLE IF NOT EXISTS feed_log (
   flock_id    BIGINT REFERENCES flocks(id) ON DELETE SET NULL,
   feed_type   TEXT NOT NULL DEFAULT 'Layers Mash',
   quantity_kg REAL NOT NULL DEFAULT 0,
+  cost_per_kg REAL NOT NULL DEFAULT 0,
+  total_cost  REAL,
+  supplier    TEXT,
   notes       TEXT,
   created_at  TEXT,
   updated_at  TEXT
@@ -240,52 +276,15 @@ ALTER TABLE monthly_balance ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read monthly_balance" ON monthly_balance FOR SELECT USING (true);
 
 
--- ─── SETTINGS ────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS settings (
+-- ─── APP SETTINGS ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS app_settings (
   key        TEXT PRIMARY KEY,
   value      TEXT NOT NULL,
   updated_at TEXT
 );
 
-ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "anon read settings" ON settings FOR SELECT USING (true);
-
-
--- ─── CREDIT CUSTOMERS ────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS credit_customers (
-  id         BIGINT PRIMARY KEY,
-  name       TEXT NOT NULL,
-  phone      TEXT,
-  notes      TEXT,
-  created_at TEXT,
-  updated_at TEXT
-);
-
-ALTER TABLE credit_customers ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "anon read credit_customers" ON credit_customers FOR SELECT USING (true);
-
-
--- ─── CREDIT SALES ────────────────────────────────────────────
--- amount_owed is GENERATED in SQLite; stored as plain column here.
-CREATE TABLE IF NOT EXISTS credit_sales (
-  id              BIGINT PRIMARY KEY,
-  date            TEXT NOT NULL,
-  month_year      TEXT NOT NULL,
-  customer_id     BIGINT NOT NULL REFERENCES credit_customers(id) ON DELETE RESTRICT,
-  egg_size        TEXT NOT NULL DEFAULT 'Medium',
-  price_per_crate REAL NOT NULL DEFAULT 0,
-  crates          INTEGER NOT NULL DEFAULT 0,
-  pieces          INTEGER NOT NULL DEFAULT 0,
-  amount_owed     REAL,
-  amount_paid     REAL NOT NULL DEFAULT 0,
-  status          TEXT NOT NULL DEFAULT 'unpaid',
-  notes           TEXT,
-  created_at      TEXT,
-  updated_at      TEXT
-);
-
-ALTER TABLE credit_sales ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "anon read credit_sales" ON credit_sales FOR SELECT USING (true);
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon read app_settings" ON app_settings FOR SELECT USING (true);
 
 
 -- ─── DEBT PAYMENTS ───────────────────────────────────────────
@@ -305,9 +304,7 @@ CREATE POLICY "anon read debt_payments" ON debt_payments FOR SELECT USING (true)
 
 
 -- ============================================================
--- UPSERT PERMISSIONS
--- The Electron app syncs via the anon key with upsert.
--- We need INSERT + UPDATE on anon for all tables.
+-- UPSERT PERMISSIONS (anon key can insert + update)
 -- ============================================================
 
 DO $$
@@ -316,7 +313,7 @@ DECLARE
   tables TEXT[] := ARRAY[
     'users','activity_log','flocks','flock_movements','production',
     'sales','expenses','domestic_usage','feed_log','health_records',
-    'egg_prices','opening_stock','monthly_balance','settings',
+    'egg_prices','opening_stock','monthly_balance','app_settings',
     'credit_customers','credit_sales','debt_payments'
   ];
 BEGIN
