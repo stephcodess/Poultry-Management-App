@@ -44,6 +44,9 @@
       "src/database/**/*",
       "dist/renderer/**/*"
     ],
+    "extraFiles": [
+      { "from": ".env", "to": ".env" }
+    ],
     "win": {
       "target": "nsis"
     }

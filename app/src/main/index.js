@@ -1,11 +1,17 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
-require('dotenv').config({ path: path.join(__dirname, '../../.env') })
+// In dev: __dirname is src/main, .env is two levels up (app root)
+// When packaged: extraFiles places .env next to the exe; process.execPath gives its location
+require('dotenv').config({
+  path: app.isPackaged
+    ? path.join(path.dirname(process.execPath), '.env')
+    : path.join(__dirname, '../../.env'),
+})
 const { initDatabase } = require('../database/db')
 const { registerHandlers, setMainWindow } = require('./ipcHandlers')
 const { exportToPdf } = require('./pdfExport')
 
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
+const isDev = !app.isPackaged
 
 function createWindow() {
   const win = new BrowserWindow({
