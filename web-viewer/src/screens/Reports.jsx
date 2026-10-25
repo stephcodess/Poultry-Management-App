@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
-import { jsPDF } from 'jspdf'
-import html2canvas from 'html2canvas'
 import { supabase } from '../supabaseClient'
 import { buildPoultryControlHtml } from '../utils/buildPoultryControlReport'
 import { buildMonthlyReportHtml, buildAnnualReportHtml } from '../utils/buildReport'
@@ -70,46 +68,9 @@ function Checkbox({ checked }) {
   )
 }
 
-// ─── PDF download via jsPDF + html2canvas ─────────────────────────────────────
-async function downloadAsPdf(html, filename, onError) {
-  const container = document.createElement('div')
-  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;font-family:Arial,sans-serif;'
-  const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
-  container.innerHTML = bodyMatch ? bodyMatch[1] : html
-  document.body.appendChild(container)
-
-  try {
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-    const pageWidth  = pdf.internal.pageSize.getWidth()
-    const pageHeight = pdf.internal.pageSize.getHeight()
-    const margin = 14
-
-    // Split on page-break divs if present, otherwise render whole container
-    const pages = container.querySelectorAll('div[style*="page-break-after"]')
-    const items = pages.length > 0 ? Array.from(pages) : [container]
-
-    for (let i = 0; i < items.length; i++) {
-      if (i > 0) pdf.addPage()
-      const canvas = await html2canvas(items[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: 794 })
-      const imgData = canvas.toDataURL('image/jpeg', 0.95)
-      const canvasWidthMm  = pageWidth - margin * 2
-      const canvasHeightMm = (canvas.height / canvas.width) * canvasWidthMm
-      const usedHeight = Math.min(canvasHeightMm, pageHeight - margin * 2)
-      pdf.addImage(imgData, 'JPEG', margin, margin, canvasWidthMm, usedHeight)
-    }
-
-    pdf.save(filename)
-  } catch (err) {
-    onError('PDF generation failed: ' + err.message)
-  } finally {
-    document.body.removeChild(container)
-  }
-}
 
 // ─── Shared preview + download panel ─────────────────────────────────────────
-function PreviewPanel({ html, filename, onBack }) {
-  const [downloading, setDownloading] = useState(false)
-  const [error, setError] = useState(null)
+function PreviewPanel({ html, onBack }) {
   const iframeRef = useRef(null)
 
   useEffect(() => {
@@ -118,12 +79,6 @@ function PreviewPanel({ html, filename, onBack }) {
       doc.open(); doc.write(html); doc.close()
     }
   }, [html])
-
-  async function handleDownload() {
-    setDownloading(true); setError(null)
-    await downloadAsPdf(html, filename, setError)
-    setDownloading(false)
-  }
 
   function handlePrint() {
     if (!iframeRef.current) return
@@ -135,14 +90,8 @@ function PreviewPanel({ html, filename, onBack }) {
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: '0 24px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
         <Button variant="secondary" onClick={onBack}>← Back</Button>
-        <Button onClick={handleDownload} disabled={downloading}>
-          {downloading ? 'Generating PDF…' : '⬇ Download PDF'}
-        </Button>
-        <button type="button" onClick={handlePrint}
-          style={{ fontSize: 13, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 4px', textDecoration: 'underline' }}>
-          🖨 Print instead
-        </button>
-        {error && <span style={{ fontSize: 13, color: '#dc2626' }}>⚠ {error}</span>}
+        <Button onClick={handlePrint}>⬇ Download PDF / Print</Button>
+        <span style={{ fontSize: 13, color: '#64748b' }}>— In the print dialog, choose <strong>Save as PDF</strong> for a pixel-perfect export</span>
       </div>
       <div style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'auto', minHeight: '75vh', background: '#f1f5f9' }}>
         <iframe ref={iframeRef} title="Report Preview" style={{ width: '100%', minWidth: 900, height: '100%', minHeight: '80vh', border: 'none', display: 'block' }} />
@@ -243,7 +192,7 @@ function MonthlyReport() {
   }
 
   if (previewHtml) {
-    return <PreviewPanel html={previewHtml} filename={`Eldesign_Poultry_${monthYear}.pdf`} onBack={() => { setPreviewHtml(null); setError(null) }} />
+    return <PreviewPanel html={previewHtml} onBack={() => { setPreviewHtml(null); setError(null) }} />
   }
 
   return (
@@ -331,7 +280,7 @@ function AnnualReport() {
   }
 
   if (previewHtml) {
-    return <PreviewPanel html={previewHtml} filename={`Eldesign_Poultry_Annual_${year}.pdf`} onBack={() => { setPreviewHtml(null); setError(null) }} />
+    return <PreviewPanel html={previewHtml} onBack={() => { setPreviewHtml(null); setError(null) }} />
   }
 
   return (
@@ -362,7 +311,6 @@ function ControlRecord() {
   const [selectedFlocks, setSelectedFlocks] = useState([])
   const [loading, setLoading] = useState(false)
   const [previewHtml, setPreviewHtml] = useState(null)
-  const [reportFilename, setReportFilename] = useState('report.pdf')
 
   useEffect(() => {
     supabase.from('flocks').select('*').eq('is_active', 1).order('sort_order').then(({ data }) => setFlocks(data || []))
@@ -410,9 +358,6 @@ function ControlRecord() {
       const allFlocks = flocksData || []
       const filteredFlocks = selectedFlocks.length === 0 ? allFlocks : allFlocks.filter(f => selectedFlocks.includes(f.id))
 
-      const flockLabel = selectedFlocks.length === 0 ? 'All_Flocks' : filteredFlocks.map(f => f.name.replace(/\s+/g, '_')).join('_')
-      setReportFilename(`Poultry_Control_Record_${from}_to_${to}_${flockLabel}.pdf`)
-
       setPreviewHtml(buildPoultryControlHtml({
         flocks: filteredFlocks, mortalityBeforeMap,
         mortality: mortality || [], feed: feed || [], water: water || [], health,
@@ -429,7 +374,7 @@ function ControlRecord() {
     : `${selectedFlocks.length} flocks`
 
   if (previewHtml) {
-    return <PreviewPanel html={previewHtml} filename={reportFilename} onBack={() => setPreviewHtml(null)} />
+    return <PreviewPanel html={previewHtml} onBack={() => setPreviewHtml(null)} />
   }
 
   return (
