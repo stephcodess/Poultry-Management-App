@@ -11,7 +11,7 @@ export function MonthProvider({ children }) {
   useEffect(() => {
     async function loadMonths() {
       const { data } = await supabase
-        .from('production_records')
+        .from('production')
         .select('month_year')
         .order('month_year', { ascending: false })
       if (data && data.length) {
