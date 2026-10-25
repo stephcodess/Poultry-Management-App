@@ -1,5 +1,7 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+import chickenLogo from './assets/chicken-logo.jpg'
+import loadingVideo from './assets/149275-795936702_medium.mp4'
 import AppShell from './components/layout/AppShell'
 import Dashboard from './screens/Dashboard'
 import Production from './screens/Production'
@@ -18,16 +20,39 @@ import { MonthProvider } from './utils/MonthContext'
 import { AuthProvider, useAuth } from './utils/AuthContext'
 import styles from './App.module.css'
 
+const SPLASH_MS = 10000
+
+function LoadingScreen() {
+  return (
+    <div className={styles.loadingScreen}>
+      <video
+        src={loadingVideo}
+        className={styles.loadingVideoBg}
+        autoPlay
+        loop
+        muted
+        playsInline
+      />
+      <div className={styles.loadingOverlay}>
+        <img src={chickenLogo} alt="Eldesign Poultry" className={styles.loadingLogo} />
+        <div className={styles.loadingName}>Eldesign Poultry</div>
+      </div>
+    </div>
+  )
+}
+
 function AppContent() {
   const { session } = useAuth()
+  const [splashDone, setSplashDone] = useState(false)
 
-  // Still loading session from storage
-  if (session === undefined) {
-    return (
-      <div className={styles.loadingScreen}>
-        <div className={styles.spinner} />
-      </div>
-    )
+  useEffect(() => {
+    const t = setTimeout(() => setSplashDone(true), SPLASH_MS)
+    return () => clearTimeout(t)
+  }, [])
+
+  // Show splash until minimum time has elapsed AND session has resolved
+  if (!splashDone || session === undefined) {
+    return <LoadingScreen />
   }
 
   // Not logged in

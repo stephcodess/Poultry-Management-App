@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import styles from './ActivityLog.module.css'
+import PageLoader from '../../components/common/PageLoader'
 
 const ACTION_MAP = {
   'auth:login': { label: 'Signed in', color: 'blue' },
@@ -173,7 +174,7 @@ export default function ActivityLog() {
         </table>
       </div>
 
-      {loading && <div className={styles.loadingRow}>Loading...</div>}
+      {loading && <PageLoader />}
 
       {!loading && hasMore && (
         <div className={styles.loadMoreRow}>

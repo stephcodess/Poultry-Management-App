@@ -28,17 +28,32 @@ function createWindow() {
 
   if (isDev) {
     win.loadURL('http://localhost:5173')
-    win.webContents.openDevTools()
+    // win.webContents.openDevTools()
   } else {
     win.loadFile(path.join(__dirname, '../../dist/renderer/index.html'))
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   initDatabase()
   registerHandlers(ipcMain)
   exportToPdf(ipcMain)
   createWindow()
+
+  // Pull latest data from Supabase in the background after window loads
+  const supabaseUrl = process.env.SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_ANON_KEY
+  if (supabaseUrl && supabaseKey) {
+    const { pullFromSupabase, flushOfflineQueue } = require('./supabaseSync')
+    const { getDb } = require('../database/db')
+    try {
+      // Flush any queued offline writes first, then pull latest state
+      await flushOfflineQueue(getDb(), supabaseUrl, supabaseKey)
+      await pullFromSupabase(getDb(), supabaseUrl, supabaseKey)
+    } catch (err) {
+      console.warn('[startup] Supabase sync skipped (offline?):', err.message)
+    }
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

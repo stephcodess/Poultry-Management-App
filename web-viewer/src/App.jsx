@@ -12,6 +12,7 @@ import HealthRecords from './screens/HealthRecords'
 import Mortality from './screens/Mortality'
 import Expenses from './screens/Expenses'
 import Debtors from './screens/Debtors'
+import Reports from './screens/Reports'
 import styles from './App.module.css'
 
 function AppContent() {
@@ -31,6 +32,7 @@ function AppContent() {
           <Route path="/mortality" element={<Mortality />} />
           <Route path="/expenses" element={<Expenses />} />
           <Route path="/debtors" element={<Debtors />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AppShell>

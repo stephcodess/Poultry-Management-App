@@ -3,6 +3,21 @@ const bcrypt = require('bcryptjs')
 const crypto = require('crypto')
 const { saveSession, loadSession, clearSession } = require('./sessionManager')
 const { logActivity } = require('./activityLogger')
+const { pushRecord, flushOfflineQueue, fetchUserFromSupabase } = require('./supabaseSync')
+
+function getSupabaseCreds() {
+  return {
+    url: process.env.SUPABASE_URL,
+    key: process.env.SUPABASE_ANON_KEY,
+  }
+}
+
+// Push a record to Supabase and queue if offline. tableName must match TABLES list.
+async function syncWrite(tableName, operation, payload) {
+  const { url, key } = getSupabaseCreds()
+  if (!url || !key) return
+  await pushRecord(getDb(), url, key, tableName, operation, payload)
+}
 
 // ─── CASH RECEIVED HELPER ─────────────────────────────────────────────────────
 // "Cash received" for a month = cash sales revenue
@@ -31,86 +46,70 @@ function getCashReceived(db, monthYear) {
   return cashSales + creditDeposits + debtRepayments
 }
 
-// ─── AUTO-SYNC ────────────────────────────────────────────────────────────────
-// Debounced background sync — fires 5 s after the last write operation.
-// Only runs if supabase_url and supabase_anon_key are configured.
-
-let _autoSyncTimer = null
 let _mainWindow = null
-
 function setMainWindow(win) { _mainWindow = win }
 
-function scheduleAutoSync() {
-  clearTimeout(_autoSyncTimer)
-  _autoSyncTimer = setTimeout(async () => {
-    const db = getDb()
-    const supabaseUrl = process.env.SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_ANON_KEY
-    if (!supabaseUrl || !supabaseKey) return
-
-    try {
-      const { syncToSupabase } = require('./supabaseSync')
-      const result = await syncToSupabase(db, supabaseUrl, supabaseKey)
-      if (result.success) {
-        const iso = result.syncedAt || new Date().toISOString()
-        db.prepare(`
-          INSERT INTO settings (key, value, updated_at) VALUES ('last_sync_at', ?, datetime('now'))
-          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-        `).run(iso)
-        _mainWindow?.webContents?.send('sync:autoSyncComplete', { success: true, syncedAt: iso })
-      } else {
-        _mainWindow?.webContents?.send('sync:autoSyncComplete', { success: false, error: result.error })
-      }
-    } catch (err) {
-      console.error('[autoSync] failed:', err.message)
-    }
-  }, 5000)
-}
-
 function registerHandlers(ipcMain) {
-  // Proxy that auto-schedules a sync after any write channel resolves
-  const WRITE_RE = /:add$|:update$|:delete$|:upsert$|:rollover$/
-  const proxy = {
-    handle(channel, handler) {
-      ipcMain.handle(channel, async (...args) => {
-        const result = await handler(...args)
-        if (WRITE_RE.test(channel)) scheduleAutoSync()
-        return result
-      })
-    },
-  }
-
-  registerAuthHandlers(proxy)
-  registerFlockHandlers(proxy)
-  registerProductionHandlers(proxy)
-  registerSalesHandlers(proxy)
-  registerDomesticHandlers(proxy)
-  registerExpensesHandlers(proxy)
-  registerSettingsHandlers(proxy)
-  registerDashboardHandlers(proxy)
-  registerMortalityHandlers(proxy)
-  registerFeedHandlers(proxy)
-  registerHealthHandlers(proxy)
-  registerBalanceInto(proxy)
-  registerAIHandlers(proxy)
-  registerDebtorsHandlers(proxy)
-  registerSyncHandlers(ipcMain) // sync handlers use real ipcMain (no auto-sync loop)
+  registerAuthHandlers(ipcMain)
+  registerFlockHandlers(ipcMain)
+  registerProductionHandlers(ipcMain)
+  registerSalesHandlers(ipcMain)
+  registerDomesticHandlers(ipcMain)
+  registerExpensesHandlers(ipcMain)
+  registerSettingsHandlers(ipcMain)
+  registerDashboardHandlers(ipcMain)
+  registerMortalityHandlers(ipcMain)
+  registerFeedHandlers(ipcMain)
+  registerWaterHandlers(ipcMain)
+  registerHealthHandlers(ipcMain)
+  registerBalanceInto(ipcMain)
+  registerAIHandlers(ipcMain)
+  registerDebtorsHandlers(ipcMain)
+  registerReportHandlers(ipcMain)
+  registerSyncHandlers(ipcMain)
 }
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 
+// Upsert a user row into the local SQLite cache
+function cacheUser(db, user) {
+  const cols = ['id', 'name', 'email', 'password_hash', 'role', 'is_active', 'created_at', 'last_login_at']
+  const present = cols.filter(c => user[c] !== undefined)
+  const placeholders = present.map(() => '?').join(', ')
+  const updates = present.filter(c => c !== 'id').map(c => `${c} = excluded.${c}`).join(', ')
+  db.prepare(`
+    INSERT INTO users (${present.join(', ')}) VALUES (${placeholders})
+    ON CONFLICT(id) DO UPDATE SET ${updates}
+  `).run(...present.map(c => user[c] ?? null))
+}
+
 function registerAuthHandlers(ipcMain) {
-  // Step 1: check email — returns what the login screen should show next
-  ipcMain.handle('auth:checkEmail', (_, { email }) => {
+  // Step 1: check email — Supabase first, SQLite cache fallback
+  ipcMain.handle('auth:checkEmail', async (_, { email }) => {
     const db = getDb()
-    const user = db.prepare('SELECT id, name, email, role, password_hash, is_active FROM users WHERE email = ?').get(email)
+    const { url, key } = getSupabaseCreds()
+    let user = null
+
+    if (url && key) {
+      try {
+        user = await fetchUserFromSupabase(url, key, email)
+        if (user) cacheUser(db, user)
+      } catch {
+        // fall through to cache
+      }
+    }
+
+    if (!user) {
+      user = db.prepare('SELECT id, name, email, role, password_hash, is_active FROM users WHERE email = ?').get(email)
+    }
+
     if (!user) return { status: 'not_found' }
     if (!user.is_active) return { status: 'inactive' }
-    if (!user.password_hash) return { status: 'pending', name: user.name } // invited, no password yet
+    if (!user.password_hash) return { status: 'pending', name: user.name }
     return { status: 'active', name: user.name }
   })
 
-  // Step 2a: existing active user — verify password and log in
+  // Step 2a: verify password — always against local hash (hash is synced from Supabase)
   ipcMain.handle('auth:login', async (_, { email, password }) => {
     const db = getDb()
     const user = db.prepare('SELECT * FROM users WHERE email = ? AND is_active = 1').get(email)
@@ -121,10 +120,12 @@ function registerAuthHandlers(ipcMain) {
     db.prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").run(user.id)
     const sessionUser = { id: user.id, name: user.name, email: user.email, role: user.role }
     logActivity({ userId: user.id, userName: user.name, userEmail: user.email, action: 'auth:login' })
+    // Push updated last_login_at to Supabase
+    syncWrite('users', 'upsert', { ...user, last_login_at: new Date().toISOString() })
     return { success: true, user: sessionUser }
   })
 
-  // Step 2b: pending invited user — set password for the first time (email is enough, no token)
+  // Step 2b: pending invited user — set password
   ipcMain.handle('auth:activateByEmail', async (_, { email, name, password }) => {
     const db = getDb()
     const user = db.prepare('SELECT * FROM users WHERE email = ? AND password_hash IS NULL AND is_active = 1').get(email)
@@ -138,10 +139,25 @@ function registerAuthHandlers(ipcMain) {
     const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id)
     const sessionUser = { id: updated.id, name: updated.name, email: updated.email, role: updated.role }
     logActivity({ userId: updated.id, userName: updated.name, userEmail: updated.email, action: 'auth:activate' })
+    syncWrite('users', 'upsert', updated)
     return { success: true, user: sessionUser }
   })
 
-  // Invite user — just register them by email, no token needed
+  // First-time owner password setup
+  ipcMain.handle('auth:setOwnerPassword', async (_, { email, newPassword }) => {
+    const db = getDb()
+    const user = db.prepare("SELECT * FROM users WHERE email = ? AND role = 'owner' AND password_hash IS NULL AND is_active = 1").get(email)
+    if (!user) return { error: 'not_eligible', message: 'Account not eligible for first-time setup.' }
+    const hash = await bcrypt.hash(newPassword, 12)
+    db.prepare("UPDATE users SET password_hash = ?, last_login_at = datetime('now') WHERE id = ?").run(hash, user.id)
+    const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id)
+    const sessionUser = { id: updated.id, name: updated.name, email: updated.email, role: updated.role }
+    logActivity({ userId: updated.id, userName: updated.name, userEmail: updated.email, action: 'auth:ownerSetup' })
+    syncWrite('users', 'upsert', updated)
+    return { success: true, user: sessionUser }
+  })
+
+  // Invite user — write to SQLite + push to Supabase
   ipcMain.handle('auth:inviteUser', async (_, { name, email, role }, session) => {
     if (!session || !['owner', 'admin'].includes(session.role)) return { error: 'forbidden' }
     const roleOrder = { owner: 4, admin: 3, editor: 2, viewer: 1 }
@@ -155,8 +171,9 @@ function registerAuthHandlers(ipcMain) {
       db.prepare('INSERT INTO users (name, email, role, is_active, created_by) VALUES (?, ?, ?, 1, ?)')
         .run(name, email, role, session.id)
     }
-    const user = db.prepare('SELECT id, name, email, role FROM users WHERE email = ?').get(email)
+    const user = db.prepare('SELECT id, name, email, role, is_active, created_by FROM users WHERE email = ?').get(email)
     logActivity({ userId: session.id, userName: session.name, userEmail: session.email, action: 'user:invite', entity: 'user', entityId: user.id, details: { email, role } })
+    syncWrite('users', 'upsert', user)
     return { success: true, user }
   })
 
@@ -175,7 +192,9 @@ function registerAuthHandlers(ipcMain) {
     if (role && roleOrder[role] >= roleOrder[session.role] && session.role !== 'owner') return { error: 'forbidden', message: 'Cannot assign this role.' }
     db.prepare('UPDATE users SET name = ?, role = ?, is_active = ? WHERE id = ?')
       .run(name || target.name, role || target.role, is_active !== undefined ? is_active : target.is_active, id)
+    const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(id)
     logActivity({ userId: session.id, userName: session.name, userEmail: session.email, action: 'user:update', entity: 'user', entityId: id, details: { role, is_active } })
+    syncWrite('users', 'upsert', updated)
     return { success: true }
   })
 
@@ -187,6 +206,7 @@ function registerAuthHandlers(ipcMain) {
     if (target.id === session.id) return { error: 'forbidden', message: 'Cannot delete yourself.' }
     db.prepare('DELETE FROM users WHERE id = ?').run(id)
     logActivity({ userId: session.id, userName: session.name, userEmail: session.email, action: 'user:delete', entity: 'user', entityId: id })
+    syncWrite('users', 'delete', { id })
     return { success: true }
   })
 
@@ -201,7 +221,19 @@ function registerAuthHandlers(ipcMain) {
     }
     const hash = await bcrypt.hash(newPassword, 12)
     db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, session.id)
+    const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(session.id)
     logActivity({ userId: session.id, userName: session.name, userEmail: session.email, action: 'auth:changePassword' })
+    syncWrite('users', 'upsert', updated)
+    return { success: true }
+  })
+
+  ipcMain.handle('auth:resetUserPassword', async (_, { id, newPassword }, session) => {
+    if (!session || session.role !== 'owner') return { error: 'forbidden' }
+    const hash = await bcrypt.hash(newPassword, 12)
+    getDb().prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, id)
+    const updated = getDb().prepare('SELECT * FROM users WHERE id = ?').get(id)
+    logActivity({ userId: session.id, userName: session.name, userEmail: session.email, action: 'user:resetPassword', entity: 'user', entityId: id })
+    syncWrite('users', 'upsert', updated)
     return { success: true }
   })
 
@@ -215,32 +247,11 @@ function registerAuthHandlers(ipcMain) {
     return db.prepare(query).all(...params)
   })
 
-  // First-time owner setup: set password without token (only if account has no password yet)
-  ipcMain.handle('auth:setOwnerPassword', async (_, { email, newPassword }) => {
-    const db = getDb()
-    const user = db.prepare("SELECT * FROM users WHERE email = ? AND role = 'owner' AND password_hash IS NULL AND is_active = 1").get(email)
-    if (!user) return { error: 'not_eligible', message: 'Account not eligible for first-time setup.' }
-    const hash = await bcrypt.hash(newPassword, 12)
-    db.prepare("UPDATE users SET password_hash = ?, last_login_at = datetime('now') WHERE id = ?").run(hash, user.id)
-    const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id)
-    const sessionUser = { id: updated.id, name: updated.name, email: updated.email, role: updated.role }
-    logActivity({ userId: updated.id, userName: updated.name, userEmail: updated.email, action: 'auth:ownerSetup' })
-    return { success: true, user: sessionUser }
-  })
-
   ipcMain.handle('auth:loadSession', () => loadSession())
   ipcMain.handle('auth:saveSession', (_, sessionData) => { saveSession(sessionData); return { success: true } })
   ipcMain.handle('auth:logout', (_, session) => {
     if (session) logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'auth:logout' })
     clearSession()
-    return { success: true }
-  })
-
-  ipcMain.handle('auth:resetUserPassword', async (_, { id, newPassword }, session) => {
-    if (!session || session.role !== 'owner') return { error: 'forbidden' }
-    const hash = await bcrypt.hash(newPassword, 12)
-    getDb().prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, id)
-    logActivity({ userId: session.id, userName: session.name, userEmail: session.email, action: 'user:resetPassword', entity: 'user', entityId: id })
     return { success: true }
   })
 }
@@ -258,23 +269,30 @@ function registerFlockHandlers(ipcMain) {
     const result = db.prepare(
       'INSERT INTO flocks (name, color, sort_order) VALUES (@name, @color, @sort_order)'
     ).run({ ...flock, sort_order: (maxOrder.m ?? -1) + 1 })
+    const inserted = db.prepare('SELECT * FROM flocks WHERE id = ?').get(result.lastInsertRowid)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'flocks:add', entity: 'flock', entityId: result.lastInsertRowid })
+    syncWrite('flocks', 'upsert', inserted)
     return { id: result.lastInsertRowid, ...flock }
   })
 
   ipcMain.handle('flocks:update', (_, id, flock, session) => {
-    getDb().prepare(
+    const db = getDb()
+    db.prepare(
       `UPDATE flocks SET name=@name, color=@color, is_active=@is_active, initial_bird_count=@initial_bird_count,
-       date_acquired=@date_acquired, breed=@breed, expected_lay_end=@expected_lay_end, target_yield_pct=@target_yield_pct
+       date_acquired=@date_acquired, breed=@breed, expected_lay_end=@expected_lay_end, target_yield_pct=@target_yield_pct,
+       age_weeks_at_acquisition=@age_weeks_at_acquisition
        WHERE id=@id`
-    ).run({ date_acquired: null, breed: null, expected_lay_end: null, target_yield_pct: 80, ...flock, id })
+    ).run({ date_acquired: null, breed: null, expected_lay_end: null, target_yield_pct: 80, age_weeks_at_acquisition: null, ...flock, id })
+    const updated = db.prepare('SELECT * FROM flocks WHERE id = ?').get(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'flocks:update', entity: 'flock', entityId: id })
+    syncWrite('flocks', 'upsert', updated)
     return { id, ...flock }
   })
 
   ipcMain.handle('flocks:delete', (_, id, session) => {
     getDb().prepare('DELETE FROM flocks WHERE id = ?').run(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'flocks:delete', entity: 'flock', entityId: id })
+    syncWrite('flocks', 'delete', { id })
     return { success: true }
   })
 }
@@ -308,25 +326,31 @@ function registerProductionHandlers(ipcMain) {
       INSERT INTO production (date, month_year, flock_id, no_of_birds, crates, pieces)
       VALUES (@date, @month_year, @flock_id, @no_of_birds, @crates, @pieces)
     `).run(clean)
+    const inserted = db.prepare('SELECT * FROM production WHERE id = ?').get(result.lastInsertRowid)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'production:add', entity: 'production', entityId: result.lastInsertRowid })
+    syncWrite('production', 'upsert', inserted)
     return { id: result.lastInsertRowid, ...clean }
   })
 
   ipcMain.handle('production:update', (_, id, record, session) => {
-    getDb().prepare(`
+    const db = getDb()
+    db.prepare(`
       UPDATE production SET
         date = @date, flock_id = @flock_id,
         no_of_birds = @no_of_birds, crates = @crates, pieces = @pieces,
         updated_at = datetime('now')
       WHERE id = @id
     `).run({ ...record, id })
+    const updated = db.prepare('SELECT * FROM production WHERE id = ?').get(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'production:update', entity: 'production', entityId: id })
+    syncWrite('production', 'upsert', updated)
     return { id, ...record }
   })
 
   ipcMain.handle('production:delete', (_, id, session) => {
     getDb().prepare('DELETE FROM production WHERE id = ?').run(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'production:delete', entity: 'production', entityId: id })
+    syncWrite('production', 'delete', { id })
     return { success: true }
   })
 
@@ -431,7 +455,9 @@ function registerSalesHandlers(ipcMain) {
       db.prepare('UPDATE sales SET credit_sale_id = ? WHERE id = ?').run(csResult.lastInsertRowid, saleId)
     }
 
+    const inserted = db.prepare('SELECT * FROM sales WHERE id = ?').get(saleId)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'sales:add', entity: 'sales', entityId: saleId })
+    syncWrite('sales', 'upsert', inserted)
     return { id: saleId, ...record }
   })
 
@@ -478,9 +504,13 @@ function registerSalesHandlers(ipcMain) {
         crates: record.crates,
         pieces: record.pieces,
       })
+      const updatedCs = db.prepare('SELECT * FROM credit_sales WHERE id = ?').get(record.credit_sale_id)
+      if (updatedCs) syncWrite('credit_sales', 'upsert', updatedCs)
     }
 
+    const updated = db.prepare('SELECT * FROM sales WHERE id = ?').get(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'sales:update', entity: 'sales', entityId: id })
+    syncWrite('sales', 'upsert', updated)
     return { id, ...record }
   })
 
@@ -488,11 +518,12 @@ function registerSalesHandlers(ipcMain) {
     const db = getDb()
     const sale = db.prepare('SELECT credit_sale_id FROM sales WHERE id = ?').get(id)
     db.prepare('DELETE FROM sales WHERE id = ?').run(id)
-    // Always remove the linked credit_sale (debt_payments cascade-delete via FK)
     if (sale?.credit_sale_id) {
       db.prepare('DELETE FROM credit_sales WHERE id = ?').run(sale.credit_sale_id)
+      syncWrite('credit_sales', 'delete', { id: sale.credit_sale_id })
     }
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'sales:delete', entity: 'sales', entityId: id })
+    syncWrite('sales', 'delete', { id })
     return { success: true }
   })
 
@@ -549,25 +580,31 @@ function registerDomesticHandlers(ipcMain) {
       INSERT INTO domestic_usage (date, month_year, location, crates, pieces, flock_id)
       VALUES (@date, @month_year, @location, @crates, @pieces, @flock_id)
     `).run(record)
+    const inserted = db.prepare('SELECT * FROM domestic_usage WHERE id = ?').get(result.lastInsertRowid)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'domestic:add', entity: 'domestic', entityId: result.lastInsertRowid })
+    syncWrite('domestic_usage', 'upsert', inserted)
     return { id: result.lastInsertRowid, ...record }
   })
 
   ipcMain.handle('domestic:update', (_, id, record, session) => {
-    getDb().prepare(`
+    const db = getDb()
+    db.prepare(`
       UPDATE domestic_usage SET
         date = @date, location = @location, crates = @crates,
         pieces = @pieces, flock_id = @flock_id,
         updated_at = datetime('now')
       WHERE id = @id
     `).run({ ...record, id })
+    const updated = db.prepare('SELECT * FROM domestic_usage WHERE id = ?').get(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'domestic:update', entity: 'domestic', entityId: id })
+    syncWrite('domestic_usage', 'upsert', updated)
     return { id, ...record }
   })
 
   ipcMain.handle('domestic:delete', (_, id, session) => {
     getDb().prepare('DELETE FROM domestic_usage WHERE id = ?').run(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'domestic:delete', entity: 'domestic', entityId: id })
+    syncWrite('domestic_usage', 'delete', { id })
     return { success: true }
   })
 }
@@ -587,12 +624,15 @@ function registerExpensesHandlers(ipcMain) {
       INSERT INTO expenses (date, month_year, category, description, payment_method, amount, feed_type, quantity_kg, bags, supplier)
       VALUES (@date, @month_year, @category, @description, @payment_method, @amount, @feed_type, @quantity_kg, @bags, @supplier)
     `).run({ feed_type: null, quantity_kg: null, bags: null, supplier: null, ...record })
+    const inserted = db.prepare('SELECT * FROM expenses WHERE id = ?').get(result.lastInsertRowid)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'expenses:add', entity: 'expenses', entityId: result.lastInsertRowid })
+    syncWrite('expenses', 'upsert', inserted)
     return { id: result.lastInsertRowid, ...record }
   })
 
   ipcMain.handle('expenses:update', (_, id, record, session) => {
-    getDb().prepare(`
+    const db = getDb()
+    db.prepare(`
       UPDATE expenses SET
         date = @date, category = @category, description = @description,
         payment_method = @payment_method, amount = @amount,
@@ -600,13 +640,16 @@ function registerExpensesHandlers(ipcMain) {
         updated_at = datetime('now')
       WHERE id = @id
     `).run({ feed_type: null, quantity_kg: null, bags: null, supplier: null, ...record, id })
+    const updated = db.prepare('SELECT * FROM expenses WHERE id = ?').get(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'expenses:update', entity: 'expenses', entityId: id })
+    syncWrite('expenses', 'upsert', updated)
     return { id, ...record }
   })
 
   ipcMain.handle('expenses:delete', (_, id, session) => {
     getDb().prepare('DELETE FROM expenses WHERE id = ?').run(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'expenses:delete', entity: 'expenses', entityId: id })
+    syncWrite('expenses', 'delete', { id })
     return { success: true }
   })
 
@@ -642,7 +685,8 @@ function registerBalanceInto(ipcMain) {
   })
 
   ipcMain.handle('balance:upsert', (_, { month_year, opening_balance, notes }) => {
-    getDb().prepare(`
+    const db = getDb()
+    db.prepare(`
       INSERT INTO monthly_balance (month_year, opening_balance, notes, updated_at)
       VALUES (?, ?, ?, datetime('now'))
       ON CONFLICT(month_year) DO UPDATE SET
@@ -650,6 +694,8 @@ function registerBalanceInto(ipcMain) {
         notes = excluded.notes,
         updated_at = excluded.updated_at
     `).run(month_year, opening_balance, notes || null)
+    const row = db.prepare('SELECT * FROM monthly_balance WHERE month_year = ?').get(month_year)
+    syncWrite('monthly_balance', 'upsert', row)
     return { success: true }
   })
 
@@ -673,7 +719,8 @@ function registerBalanceInto(ipcMain) {
         notes = excluded.notes,
         updated_at = excluded.updated_at
     `).run(to_month, closingBalance, `Rolled over from ${from_month}`)
-
+    const row = db.prepare('SELECT * FROM monthly_balance WHERE month_year = ?').get(to_month)
+    syncWrite('monthly_balance', 'upsert', row)
     return { success: true, closingBalance }
   })
 
@@ -730,6 +777,7 @@ function registerSettingsHandlers(ipcMain) {
       Object.entries(data).forEach(([k, v]) => upsert.run(k, String(v)))
     })
     tx(settings)
+    Object.entries(settings).forEach(([key, value]) => syncWrite('settings', 'upsert', { key, value }))
     return { success: true }
   })
 
@@ -892,28 +940,45 @@ function registerMortalityHandlers(ipcMain) {
   })
 
   ipcMain.handle('mortality:add', (_, record, session) => {
-    const result = getDb().prepare(`
+    const db = getDb()
+    const result = db.prepare(`
       INSERT INTO flock_movements (date, month_year, flock_id, count, reason, notes)
       VALUES (@date, @month_year, @flock_id, @count, @reason, @notes)
     `).run(record)
+    const inserted = db.prepare('SELECT * FROM flock_movements WHERE id = ?').get(result.lastInsertRowid)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'mortality:add', entity: 'flock_movement', entityId: result.lastInsertRowid })
+    syncWrite('flock_movements', 'upsert', inserted)
     return { id: result.lastInsertRowid, ...record }
   })
 
   ipcMain.handle('mortality:update', (_, id, record, session) => {
-    getDb().prepare(`
+    const db = getDb()
+    db.prepare(`
       UPDATE flock_movements SET date=@date, flock_id=@flock_id, count=@count,
         reason=@reason, notes=@notes, updated_at=datetime('now')
       WHERE id=@id
     `).run({ ...record, id })
+    const updated = db.prepare('SELECT * FROM flock_movements WHERE id = ?').get(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'mortality:update', entity: 'flock_movement', entityId: id })
+    syncWrite('flock_movements', 'upsert', updated)
     return { id, ...record }
   })
 
   ipcMain.handle('mortality:delete', (_, id, session) => {
     getDb().prepare('DELETE FROM flock_movements WHERE id=?').run(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'mortality:delete', entity: 'flock_movement', entityId: id })
+    syncWrite('flock_movements', 'delete', { id })
     return { success: true }
+  })
+
+  ipcMain.handle('mortality:getRange', (_, { from, to }) => {
+    return getDb().prepare(`
+      SELECT m.*, f.name AS flock_name
+      FROM flock_movements m
+      LEFT JOIN flocks f ON f.id = m.flock_id
+      WHERE m.date >= ? AND m.date <= ?
+      ORDER BY m.date ASC, m.flock_id ASC
+    `).all(from, to)
   })
 
   ipcMain.handle('mortality:getSummary', (_, monthYear) => {
@@ -942,7 +1007,7 @@ function registerMortalityHandlers(ipcMain) {
 
     // Live bird count per flock = initial_bird_count - all cumulative removals
     const flockBirdCounts = db.prepare(`
-      SELECT f.id, f.name, f.color, f.initial_bird_count,
+      SELECT f.id, f.name, f.color, f.initial_bird_count, f.date_acquired, f.age_weeks_at_acquisition,
         COALESCE((SELECT SUM(m.count) FROM flock_movements m WHERE m.flock_id = f.id), 0) AS total_removed
       FROM flocks f WHERE f.is_active = 1
     `).all()
@@ -965,27 +1030,34 @@ function registerFeedHandlers(ipcMain) {
   })
 
   ipcMain.handle('feed:add', (_, record, session) => {
-    const result = getDb().prepare(`
+    const db = getDb()
+    const result = db.prepare(`
       INSERT INTO feed_log (date, month_year, flock_id, feed_type, quantity_kg, notes)
       VALUES (@date, @month_year, @flock_id, @feed_type, @quantity_kg, @notes)
     `).run(record)
+    const inserted = db.prepare('SELECT * FROM feed_log WHERE id = ?').get(result.lastInsertRowid)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'feed:add', entity: 'feed', entityId: result.lastInsertRowid })
+    syncWrite('feed_log', 'upsert', inserted)
     return { id: result.lastInsertRowid, ...record }
   })
 
   ipcMain.handle('feed:update', (_, id, record, session) => {
-    getDb().prepare(`
+    const db = getDb()
+    db.prepare(`
       UPDATE feed_log SET date=@date, flock_id=@flock_id, feed_type=@feed_type,
         quantity_kg=@quantity_kg, notes=@notes, updated_at=datetime('now')
       WHERE id=@id
     `).run({ ...record, id })
+    const updated = db.prepare('SELECT * FROM feed_log WHERE id = ?').get(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'feed:update', entity: 'feed', entityId: id })
+    syncWrite('feed_log', 'upsert', updated)
     return { id, ...record }
   })
 
   ipcMain.handle('feed:delete', (_, id, session) => {
     getDb().prepare('DELETE FROM feed_log WHERE id=?').run(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'feed:delete', entity: 'feed', entityId: id })
+    syncWrite('feed_log', 'delete', { id })
     return { success: true }
   })
 
@@ -1041,6 +1113,16 @@ function registerFeedHandlers(ipcMain) {
     }
   })
 
+  ipcMain.handle('feed:getRange', (_, { from, to }) => {
+    return getDb().prepare(`
+      SELECT f.*, fk.name AS flock_name, fk.color AS flock_color
+      FROM feed_log f
+      LEFT JOIN flocks fk ON fk.id = f.flock_id
+      WHERE f.date >= ? AND f.date <= ?
+      ORDER BY f.date ASC, f.flock_id ASC
+    `).all(from, to)
+  })
+
   ipcMain.handle('feed:getSummary', (_, monthYear) => {
     const db = getDb()
     const totals = db.prepare(
@@ -1071,6 +1153,79 @@ function registerFeedHandlers(ipcMain) {
   })
 }
 
+// ─── WATER LOG ────────────────────────────────────────────────────────────────
+
+function registerWaterHandlers(ipcMain) {
+  ipcMain.handle('water:getAll', (_, monthYear) => {
+    return getDb().prepare(`
+      SELECT w.*, f.name AS flock_name, f.color AS flock_color
+      FROM water_log w
+      LEFT JOIN flocks f ON f.id = w.flock_id
+      WHERE w.month_year = ?
+      ORDER BY w.date ASC
+    `).all(monthYear)
+  })
+
+  ipcMain.handle('water:add', (_, record, session) => {
+    const db = getDb()
+    const result = db.prepare(`
+      INSERT INTO water_log (date, month_year, flock_id, litres, notes)
+      VALUES (@date, @month_year, @flock_id, @litres, @notes)
+    `).run(record)
+    const inserted = db.prepare('SELECT * FROM water_log WHERE id = ?').get(result.lastInsertRowid)
+    logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'water:add', entity: 'water', entityId: result.lastInsertRowid })
+    syncWrite('water_log', 'upsert', inserted)
+    return { id: result.lastInsertRowid, ...record }
+  })
+
+  ipcMain.handle('water:update', (_, id, record, session) => {
+    const db = getDb()
+    db.prepare(`
+      UPDATE water_log SET date=@date, flock_id=@flock_id, litres=@litres,
+        notes=@notes, updated_at=datetime('now')
+      WHERE id=@id
+    `).run({ ...record, id })
+    const updated = db.prepare('SELECT * FROM water_log WHERE id = ?').get(id)
+    logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'water:update', entity: 'water', entityId: id })
+    syncWrite('water_log', 'upsert', updated)
+    return { id, ...record }
+  })
+
+  ipcMain.handle('water:delete', (_, id, session) => {
+    getDb().prepare('DELETE FROM water_log WHERE id=?').run(id)
+    logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'water:delete', entity: 'water', entityId: id })
+    syncWrite('water_log', 'delete', { id })
+    return { success: true }
+  })
+
+  ipcMain.handle('water:getSummary', (_, monthYear) => {
+    const db = getDb()
+    const total = db.prepare(
+      'SELECT COALESCE(SUM(litres),0) AS total FROM water_log WHERE month_year = ?'
+    ).get(monthYear)
+    const byFlock = db.prepare(`
+      SELECT w.flock_id, f.name AS flock_name, f.color AS flock_color,
+        COALESCE(SUM(w.litres),0) AS total_litres
+      FROM water_log w
+      LEFT JOIN flocks f ON f.id = w.flock_id
+      WHERE w.month_year = ?
+      GROUP BY w.flock_id
+    `).all(monthYear)
+    return { total: total.total, byFlock }
+  })
+
+  // Range query used by the Poultry Control Record report
+  ipcMain.handle('water:getRange', (_, { from, to }) => {
+    return getDb().prepare(`
+      SELECT w.*, f.name AS flock_name, f.color AS flock_color
+      FROM water_log w
+      LEFT JOIN flocks f ON f.id = w.flock_id
+      WHERE w.date >= ? AND w.date <= ?
+      ORDER BY w.date ASC, w.flock_id ASC
+    `).all(from, to)
+  })
+}
+
 // ─── HEALTH RECORDS ───────────────────────────────────────────────────────────
 
 function registerHealthHandlers(ipcMain) {
@@ -1096,31 +1251,48 @@ function registerHealthHandlers(ipcMain) {
   })
 
   ipcMain.handle('health:add', (_, record, session) => {
-    const result = getDb().prepare(`
+    const db = getDb()
+    const result = db.prepare(`
       INSERT INTO health_records
         (date, month_year, flock_id, record_type, name, dosage, administered_by, cost, next_due_date, notes)
       VALUES
         (@date, @month_year, @flock_id, @record_type, @name, @dosage, @administered_by, @cost, @next_due_date, @notes)
     `).run(record)
+    const inserted = db.prepare('SELECT * FROM health_records WHERE id = ?').get(result.lastInsertRowid)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'health:add', entity: 'health', entityId: result.lastInsertRowid })
+    syncWrite('health_records', 'upsert', inserted)
     return { id: result.lastInsertRowid, ...record }
   })
 
   ipcMain.handle('health:update', (_, id, record, session) => {
-    getDb().prepare(`
+    const db = getDb()
+    db.prepare(`
       UPDATE health_records SET date=@date, flock_id=@flock_id, record_type=@record_type,
         name=@name, dosage=@dosage, administered_by=@administered_by, cost=@cost,
         next_due_date=@next_due_date, notes=@notes, updated_at=datetime('now')
       WHERE id=@id
     `).run({ ...record, id })
+    const updated = db.prepare('SELECT * FROM health_records WHERE id = ?').get(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'health:update', entity: 'health', entityId: id })
+    syncWrite('health_records', 'upsert', updated)
     return { id, ...record }
   })
 
   ipcMain.handle('health:delete', (_, id, session) => {
     getDb().prepare('DELETE FROM health_records WHERE id=?').run(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'health:delete', entity: 'health', entityId: id })
+    syncWrite('health_records', 'delete', { id })
     return { success: true }
+  })
+
+  ipcMain.handle('health:getRange', (_, { from, to }) => {
+    return getDb().prepare(`
+      SELECT h.*, f.name AS flock_name
+      FROM health_records h
+      LEFT JOIN flocks f ON f.id = h.flock_id
+      WHERE h.date >= ? AND h.date <= ?
+      ORDER BY h.date ASC, h.flock_id ASC
+    `).all(from, to)
   })
 
   ipcMain.handle('health:getSummary', (_, monthYear) => {
@@ -1154,7 +1326,7 @@ async function callGemini(apiKey, systemPrompt, messages) {
       ]
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents }) }
   )
 
@@ -1384,15 +1556,20 @@ function registerDebtorsHandlers(ipcMain) {
     const result = db.prepare(
       'INSERT INTO credit_customers (name, phone, notes) VALUES (@name, @phone, @notes)'
     ).run(record)
+    const inserted = db.prepare('SELECT * FROM credit_customers WHERE id = ?').get(result.lastInsertRowid)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'debtors:addCustomer', entity: 'credit_customer', entityId: result.lastInsertRowid })
+    syncWrite('credit_customers', 'upsert', inserted)
     return { id: result.lastInsertRowid, ...record }
   })
 
   ipcMain.handle('debtors:updateCustomer', (_, id, record, session) => {
-    getDb().prepare(
+    const db = getDb()
+    db.prepare(
       "UPDATE credit_customers SET name=@name, phone=@phone, notes=@notes, updated_at=datetime('now') WHERE id=@id"
     ).run({ ...record, id })
+    const updated = db.prepare('SELECT * FROM credit_customers WHERE id = ?').get(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'debtors:updateCustomer', entity: 'credit_customer', entityId: id })
+    syncWrite('credit_customers', 'upsert', updated)
     return { id, ...record }
   })
 
@@ -1404,6 +1581,7 @@ function registerDebtorsHandlers(ipcMain) {
     if (hasUnpaid.cnt > 0) return { error: 'has_unpaid', message: 'Customer has outstanding debts. Resolve all debts first.' }
     db.prepare('DELETE FROM credit_customers WHERE id = ?').run(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'debtors:deleteCustomer', entity: 'credit_customer', entityId: id })
+    syncWrite('credit_customers', 'delete', { id })
     return { success: true }
   })
 
@@ -1432,20 +1610,25 @@ function registerDebtorsHandlers(ipcMain) {
       VALUES
         (@date, @month_year, @customer_id, @egg_size, @price_per_crate, @crates, @pieces, @amount_paid, @status, @notes)
     `).run(record)
+    const inserted = db.prepare('SELECT * FROM credit_sales WHERE id = ?').get(result.lastInsertRowid)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'debtors:addCreditSale', entity: 'credit_sale', entityId: result.lastInsertRowid })
+    syncWrite('credit_sales', 'upsert', inserted)
     return { id: result.lastInsertRowid, ...record }
   })
 
   ipcMain.handle('debtors:updateCreditSale', (_, id, record, session) => {
     const monthYear = record.month_year || (record.date ? record.date.slice(0, 7) : null)
-    getDb().prepare(`
+    const db = getDb()
+    db.prepare(`
       UPDATE credit_sales SET
         date=@date, month_year=@month_year, egg_size=@egg_size, price_per_crate=@price_per_crate,
         crates=@crates, pieces=@pieces, amount_paid=@amount_paid, status=@status, notes=@notes,
         updated_at=datetime('now')
       WHERE id=@id
     `).run({ ...record, month_year: monthYear, id })
+    const updated = db.prepare('SELECT * FROM credit_sales WHERE id = ?').get(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'debtors:updateCreditSale', entity: 'credit_sale', entityId: id })
+    syncWrite('credit_sales', 'upsert', updated)
     return { id, ...record }
   })
 
@@ -1456,6 +1639,7 @@ function registerDebtorsHandlers(ipcMain) {
     if (sale.amount_paid > 0) return { error: 'has_payments', message: 'Cannot delete a sale that has received payments.' }
     db.prepare('DELETE FROM credit_sales WHERE id = ?').run(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'debtors:deleteCreditSale', entity: 'credit_sale', entityId: id })
+    syncWrite('credit_sales', 'delete', { id })
     return { success: true }
   })
 
@@ -1470,17 +1654,22 @@ function registerDebtorsHandlers(ipcMain) {
       : newPaid > 0 ? 'partial'
       : 'unpaid'
 
+    let insertedPayment
     db.transaction(() => {
-      db.prepare(`
+      const payResult = db.prepare(`
         INSERT INTO debt_payments (credit_sale_id, date, month_year, amount, payment_method, notes)
         VALUES (@credit_sale_id, @date, @month_year, @amount, @payment_method, @notes)
       `).run(record)
+      insertedPayment = db.prepare('SELECT * FROM debt_payments WHERE id = ?').get(payResult.lastInsertRowid)
       db.prepare(
         "UPDATE credit_sales SET amount_paid = ?, status = ?, updated_at = datetime('now') WHERE id = ?"
       ).run(newPaid, newStatus, record.credit_sale_id)
     })()
 
+    const updatedSale = db.prepare('SELECT * FROM credit_sales WHERE id = ?').get(record.credit_sale_id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'debtors:addPayment', entity: 'credit_sale', entityId: record.credit_sale_id, details: { amount: record.amount } })
+    syncWrite('debt_payments', 'upsert', insertedPayment)
+    syncWrite('credit_sales', 'upsert', updatedSale)
     return { success: true, newPaid, newStatus }
   })
 
@@ -1522,16 +1711,83 @@ function registerDebtorsHandlers(ipcMain) {
   })
 }
 
+// ─── POULTRY CONTROL RECORD ───────────────────────────────────────────────────
+
+function registerReportHandlers(ipcMain) {
+  // Returns all data needed for the Poultry Control Record for a date range
+  ipcMain.handle('report:poultryControl', (_, { from, to }) => {
+    const db = getDb()
+
+    const flocks = db.prepare('SELECT * FROM flocks WHERE is_active = 1 ORDER BY sort_order ASC').all()
+
+    // Cumulative mortality before start date per flock (for opening stock calc)
+    const mortalityBefore = db.prepare(`
+      SELECT flock_id, COALESCE(SUM(count), 0) AS total
+      FROM flock_movements WHERE date < ?
+      GROUP BY flock_id
+    `).all(from)
+    const mortalityBeforeMap = Object.fromEntries(mortalityBefore.map(r => [r.flock_id, r.total]))
+
+    // Daily mortality in range
+    const mortality = db.prepare(`
+      SELECT date, flock_id, COALESCE(SUM(count), 0) AS count
+      FROM flock_movements WHERE date >= ? AND date <= ?
+      GROUP BY date, flock_id ORDER BY date ASC
+    `).all(from, to)
+
+    // Daily feed in range (sum per flock per day)
+    const feed = db.prepare(`
+      SELECT date, flock_id, COALESCE(SUM(quantity_kg), 0) AS quantity_kg
+      FROM feed_log WHERE date >= ? AND date <= ?
+      GROUP BY date, flock_id ORDER BY date ASC
+    `).all(from, to)
+
+    // Daily water in range
+    const water = db.prepare(`
+      SELECT date, flock_id, COALESCE(SUM(litres), 0) AS litres
+      FROM water_log WHERE date >= ? AND date <= ?
+      GROUP BY date, flock_id ORDER BY date ASC
+    `).all(from, to)
+
+    // Health records in range (vaccination/drugs)
+    const health = db.prepare(`
+      SELECT date, flock_id, GROUP_CONCAT(name, ', ') AS treatments
+      FROM health_records WHERE date >= ? AND date <= ?
+      GROUP BY date, flock_id ORDER BY date ASC
+    `).all(from, to)
+
+    return { flocks, mortalityBeforeMap, mortality, feed, water, health }
+  })
+}
+
 function registerSyncHandlers(ipcMain) {
   ipcMain.handle('sync:toSupabase', async () => {
-    const db = getDb()
-    const supabaseUrl = process.env.SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_ANON_KEY
-    if (!supabaseUrl || !supabaseKey) {
-      return { success: false, error: 'Supabase URL and anon key not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY to the .env file.' }
-    }
-    const { syncToSupabase } = require('./supabaseSync')
-    return syncToSupabase(db, supabaseUrl, supabaseKey)
+    const { url, key } = getSupabaseCreds()
+    if (!url || !key) return { success: false, error: 'Supabase credentials not configured.' }
+    const { pushToSupabase } = require('./supabaseSync')
+    const result = await pushToSupabase(getDb(), url, key)
+    if (result.success) saveLastSync(result.syncedAt)
+    return result
+  })
+
+  ipcMain.handle('sync:fromSupabase', async () => {
+    const { url, key } = getSupabaseCreds()
+    if (!url || !key) return { success: false, error: 'Supabase credentials not configured.' }
+    const { pullFromSupabase } = require('./supabaseSync')
+    const result = await pullFromSupabase(getDb(), url, key)
+    if (result.success) saveLastSync(result.syncedAt)
+    return result
+  })
+
+  ipcMain.handle('sync:flushQueue', async () => {
+    const { url, key } = getSupabaseCreds()
+    if (!url || !key) return { flushed: 0, remaining: 0 }
+    const { flushOfflineQueue } = require('./supabaseSync')
+    return flushOfflineQueue(getDb(), url, key)
+  })
+
+  ipcMain.handle('sync:getQueueCount', () => {
+    return getDb().prepare('SELECT COUNT(*) as c FROM offline_queue').get().c
   })
 
   ipcMain.handle('sync:getLastSync', () => {
@@ -1540,12 +1796,16 @@ function registerSyncHandlers(ipcMain) {
   })
 
   ipcMain.handle('sync:saveLastSync', (_, isoString) => {
-    getDb().prepare(`
-      INSERT INTO settings (key, value, updated_at) VALUES ('last_sync_at', ?, datetime('now'))
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-    `).run(isoString)
+    saveLastSync(isoString)
     return { success: true }
   })
+}
+
+function saveLastSync(iso) {
+  getDb().prepare(`
+    INSERT INTO settings (key, value, updated_at) VALUES ('last_sync_at', ?, datetime('now'))
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+  `).run(iso)
 }
 
 module.exports = { registerHandlers, setMainWindow }

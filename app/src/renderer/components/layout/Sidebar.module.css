@@ -18,8 +18,12 @@
 }
 
 .brandIcon {
-  font-size: 31.9px;
-  line-height: 1;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1.5px solid rgba(255,255,255,0.2);
 }
 
 .brandName {

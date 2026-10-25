@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import PageLoader from '../components/common/PageLoader'
 import { useMonth } from '../utils/MonthContext'
 import { formatDate, formatCurrency, toMonthYear } from '../utils/format'
 import Table from '../components/common/Table'
@@ -38,7 +39,10 @@ export default function HealthRecords() {
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
 
+  const [loading, setLoading] = useState(true)
+
   const load = useCallback(async () => {
+    setLoading(true)
     const [r, u, s, f] = await Promise.all([
       window.api.health.getAll(monthYear),
       window.api.health.getUpcoming(),
@@ -49,6 +53,7 @@ export default function HealthRecords() {
     setUpcoming(u)
     setSummary(s)
     setFlocks(f)
+    setLoading(false)
   }, [monthYear])
 
   useEffect(() => { load() }, [load])
@@ -145,6 +150,8 @@ export default function HealthRecords() {
     },
   ]
 
+  if (loading) return <PageLoader />
+
   return (
     <div className={styles.page}>
       {/* Upcoming alerts */}
@@ -176,27 +183,50 @@ export default function HealthRecords() {
         ))}
       </div>
 
+      {/* Action row */}
       <div className={styles.toolbar}>
         <Button onClick={openAdd}>+ Add Health Record</Button>
-        <Select value={filterFlock} onChange={e => setFilterFlock(e.target.value)} style={{ minWidth: 150 }}>
-          <option value="">All Flocks</option>
-          {flocks.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-        </Select>
-        <Select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ minWidth: 160 }}>
-          <option value="">All Types</option>
-          {RECORD_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-        </Select>
-        <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
-          title="From date" style={{ width: 145 }} />
-        <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)}
-          title="To date" style={{ width: 145 }} />
         {hasFilter && (
           <Button variant="secondary" onClick={() => {
             setFilterFlock(''); setFilterType(''); setFilterDateFrom(''); setFilterDateTo('')
           }}>
-            Clear filters
+            ✕ Clear Filters
           </Button>
         )}
+      </div>
+
+      {/* Filter bar */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr 1fr 1fr',
+        gap: 12,
+        background: '#fff',
+        border: '1px solid #e2e8f0',
+        borderRadius: 12,
+        padding: '14px 16px',
+      }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Flock</div>
+          <Select value={filterFlock} onChange={e => setFilterFlock(e.target.value)} style={{ width: '100%' }}>
+            <option value="">All Flocks</option>
+            {flocks.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </Select>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Type</div>
+          <Select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ width: '100%' }}>
+            <option value="">All Types</option>
+            {RECORD_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </Select>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>From</div>
+          <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} style={{ width: '100%' }} />
+        </div>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>To</div>
+          <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} style={{ width: '100%' }} />
+        </div>
       </div>
 
       <Table columns={columns} data={filteredRecords} emptyMessage="No health records match the selected filters." />

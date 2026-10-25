@@ -48,11 +48,12 @@ CREATE TABLE IF NOT EXISTS flocks (
   is_active          INTEGER NOT NULL DEFAULT 1,
   sort_order         INTEGER NOT NULL DEFAULT 0,
   initial_bird_count INTEGER NOT NULL DEFAULT 0,
-  date_acquired      TEXT,
-  breed              TEXT,
-  expected_lay_end   TEXT,
-  target_yield_pct   REAL NOT NULL DEFAULT 80,
-  created_at         TEXT
+  date_acquired               TEXT,
+  breed                       TEXT,
+  expected_lay_end            TEXT,
+  target_yield_pct            REAL NOT NULL DEFAULT 80,
+  age_weeks_at_acquisition    INTEGER,
+  created_at                  TEXT
 );
 
 ALTER TABLE flocks ENABLE ROW LEVEL SECURITY;

@@ -51,10 +51,6 @@ export default function Settings() {
 
   useEffect(() => {
     load()
-    window.api.sync.onAutoSyncComplete(result => {
-      if (result.success) setLastSync(result.syncedAt)
-    })
-    return () => window.api.sync.offAutoSyncComplete()
   }, [])
 
   function flash() {
@@ -115,6 +111,7 @@ export default function Settings() {
       breed: flock.breed || null,
       expected_lay_end: flock.expected_lay_end || null,
       target_yield_pct: Number(flock.target_yield_pct) || 80,
+      age_weeks_at_acquisition: flock.age_weeks_at_acquisition != null && flock.age_weeks_at_acquisition !== '' ? Number(flock.age_weeks_at_acquisition) : null,
     })
     flash()
   }
@@ -312,6 +309,15 @@ export default function Settings() {
                           placeholder="80"
                           value={flock.target_yield_pct ?? 80}
                           onChange={e => updateFlock(flock.id, 'target_yield_pct', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <div className={styles.fieldLabel}>Age at Purchase (weeks)</div>
+                        <Input
+                          type="number" min="0"
+                          placeholder="e.g. 18"
+                          value={flock.age_weeks_at_acquisition ?? ''}
+                          onChange={e => updateFlock(flock.id, 'age_weeks_at_acquisition', e.target.value)}
                         />
                       </div>
                     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../../utils/AuthContext'
 import styles from './LoginScreen.module.css'
+import chickenLogo from '../../assets/chicken-logo.jpg'
 
 // ── Decorative left panel ──────────────────────────────────────────────────────
 function BrandPanel() {
@@ -13,7 +14,7 @@ function BrandPanel() {
 
       {/* Top-left logo bar */}
       <div className={styles.panelTopBar}>
-        <div className={styles.panelTopLogo}>🐔</div>
+        <img src={chickenLogo} alt="logo" className={styles.panelTopLogoImg} />
         <div>
           <div className={styles.panelTopName}>Eldesign Poultry Farm</div>
           <div className={styles.panelTopSub}>Farm Management System</div>
@@ -47,7 +48,7 @@ function BrandPanel() {
 
       {/* Centre mascot */}
       <div className={styles.panelCenter}>
-        <div className={styles.panelMascotRing}>🐔</div>
+        <img src={chickenLogo} alt="Eldesign Poultry" className={styles.panelMascotImg} />
         <div className={styles.panelMascotTag}>Smart Poultry Management</div>
       </div>
 
@@ -85,13 +86,12 @@ function BrandPanel() {
 }
 
 // ── Onboarding flow (first run) ────────────────────────────────────────────────
-const OB_STEPS = ['Welcome', 'Farm Details', 'Sync Mode', 'Your Flock', 'Done']
+const OB_STEPS = ['Welcome', 'Farm Details', 'Your Flock', 'Done']
 
 function OnboardingFlow({ onComplete }) {
-  const [step, setStep]           = useState(0) // 0..4
+  const [step, setStep]           = useState(0) // 0..3
   const [farmName, setFarmName]   = useState('Eldesign Poultry Farm')
   const [farmLoc, setFarmLoc]     = useState('Osogbo, Osun State, Nigeria')
-  const [syncMode, setSyncMode]   = useState('local')
   const [flockSize, setFlockSize] = useState('')
   const [loading, setLoading]     = useState(false)
 
@@ -109,7 +109,7 @@ function OnboardingFlow({ onComplete }) {
     await window.api.settings.update({
       farm_name: farmName.trim() || 'Eldesign Poultry Farm',
       farm_location: farmLoc.trim(),
-      sync_mode: syncMode,
+      sync_mode: 'cloud',
       flock_size_range: flockSize,
       onboarding_complete: '1',
     })
@@ -168,63 +168,11 @@ function OnboardingFlow({ onComplete }) {
     </>
   )
 
-  // Step 2 — Sync mode
+  // Step 2 — Flock size
   if (step === 2) return (
     <>
       {progress}
-      <div className={styles.obStepLabel}>Step 2 of {OB_STEPS.length - 1} — Data Storage</div>
-      <div className={styles.formTitle}>Where should your data live?</div>
-      <div className={styles.formSubtitle}>Choose how your farm records are stored.</div>
-      <div className={styles.form}>
-        <div className={styles.modeCards}>
-          <button
-            className={`${styles.modeCard} ${syncMode === 'local' ? styles.selected : ''}`}
-            onClick={() => setSyncMode('local')}
-          >
-            <div className={styles.modeCardIcon}>💻</div>
-            <div className={styles.modeCardBody}>
-              <div className={styles.modeCardTitle}>Local Storage</div>
-              <div className={styles.modeCardDesc}>
-                All data is saved directly on this computer. Works completely offline — no internet needed.
-                Fast, private, and 100% yours. Best for single-device farms.
-              </div>
-            </div>
-            <div className={`${styles.modeCardBadge} ${styles.recommended}`}>Recommended</div>
-          </button>
-
-          <button
-            className={`${styles.modeCard} ${syncMode === 'cloud' ? styles.selected : ''}`}
-            onClick={() => setSyncMode('cloud')}
-          >
-            <div className={styles.modeCardIcon}>☁️</div>
-            <div className={styles.modeCardBody}>
-              <div className={styles.modeCardTitle}>Cloud Sync</div>
-              <div className={styles.modeCardDesc}>
-                Data syncs live across multiple devices. Requires internet. Access your records from any computer
-                on the farm. Ideal for teams with multiple managers.
-              </div>
-            </div>
-            <div className={`${styles.modeCardBadge} ${styles.coming}`}>Coming Soon</div>
-          </button>
-        </div>
-
-        {syncMode === 'cloud' && (
-          <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '11px 14px', fontSize: 13, color: '#92400e' }}>
-            ⚠️ Cloud sync is not yet available. Your data will be stored locally until this feature launches.
-          </div>
-        )}
-
-        <button className={styles.btn} onClick={() => setStep(3)}>Next →</button>
-        <button className={styles.ghostBtn} onClick={() => setStep(1)}>← Back</button>
-      </div>
-    </>
-  )
-
-  // Step 3 — Flock size
-  if (step === 3) return (
-    <>
-      {progress}
-      <div className={styles.obStepLabel}>Step 3 of {OB_STEPS.length - 1} — Your Flock</div>
+      <div className={styles.obStepLabel}>Step 2 of {OB_STEPS.length - 1} — Your Flock</div>
       <div className={styles.formTitle}>How large is your flock?</div>
       <div className={styles.formSubtitle}>
         This helps us configure the right defaults for your farm. You can add individual flock groups in the app.
@@ -242,9 +190,9 @@ function OnboardingFlow({ onComplete }) {
             </button>
           ))}
         </div>
-        <button className={styles.btn} onClick={() => setStep(4)}
+        <button className={styles.btn} onClick={() => setStep(3)}
           disabled={!flockSize}>Next →</button>
-        <button className={styles.ghostBtn} onClick={() => setStep(2)}>← Back</button>
+        <button className={styles.ghostBtn} onClick={() => setStep(1)}>← Back</button>
       </div>
     </>
   )
@@ -263,7 +211,6 @@ function OnboardingFlow({ onComplete }) {
           {[
             ['Farm Name', farmName],
             ['Location', farmLoc || '—'],
-            ['Storage', syncMode === 'local' ? 'Local (this computer)' : 'Cloud Sync'],
             ['Flock Size', flockSize + ' birds'],
           ].map(([label, value]) => (
             <div key={label} className={styles.welcomeSummaryRow}>
@@ -443,11 +390,7 @@ export default function LoginScreen() {
   }, [])
 
   if (showOnboarding === null) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span className={styles.spinner} />
-      </div>
-    )
+    return null
   }
 
   return (

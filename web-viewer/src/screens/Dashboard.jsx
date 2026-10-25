@@ -103,6 +103,9 @@ export default function Dashboard() {
           >
             {flocks.map(flock => {
               const birds = getBirdCount(flock.id, flock.initial_bird_count)
+              const currentAgeWeeks = (flock.age_weeks_at_acquisition != null && flock.date_acquired)
+                ? flock.age_weeks_at_acquisition + Math.floor(dayjs().diff(dayjs(flock.date_acquired), 'day') / 7)
+                : null
               return (
                 <div
                   key={flock.id}
@@ -111,7 +114,12 @@ export default function Dashboard() {
                 >
                   <div className={s.kpiLabel}>{flock.name}</div>
                   <div className={s.kpiValue}>{birds.toLocaleString()}</div>
-                  <div className={s.kpiSub}>birds remaining</div>
+                  <div className={s.kpiSub}>
+                    birds remaining
+                    {currentAgeWeeks != null && (
+                      <span style={{ marginLeft: 8, fontWeight: 600, color: '#374151' }}>· {currentAgeWeeks} wks old</span>
+                    )}
+                  </div>
                 </div>
               )
             })}

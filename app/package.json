@@ -5,7 +5,7 @@
   "main": "src/main/index.js",
   "scripts": {
     "start": "electron .",
-    "dev": "concurrently \"npm run dev:renderer\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev": "concurrently --kill-others \"npm run dev:renderer\" \"wait-on --timeout 30000 http://localhost:5173 && electron .\"",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "dev:renderer": "vite",
     "build": "vite build && electron-builder",

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import PageLoader from '../components/common/PageLoader'
 import { useMonth } from '../utils/MonthContext'
 import { formatDate, toMonthYear } from '../utils/format'
 import Table from '../components/common/Table'
@@ -69,7 +70,10 @@ export default function FlockMovements() {
   const [editRecord, setEditRecord] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
 
+  const [loading, setLoading] = useState(true)
+
   const load = useCallback(async () => {
+    setLoading(true)
     const [r, s, f] = await Promise.all([
       window.api.mortality.getAll(monthYear),
       window.api.mortality.getSummary(monthYear),
@@ -78,6 +82,7 @@ export default function FlockMovements() {
     setRecords(r)
     setSummary(s)
     setFlocks(f)
+    setLoading(false)
   }, [monthYear])
 
   useEffect(() => { load() }, [load])
@@ -156,6 +161,8 @@ export default function FlockMovements() {
     },
   ]
 
+  if (loading) return <PageLoader />
+
   return (
     <div className={styles.page}>
       {/* Live bird count cards per flock */}
@@ -165,11 +172,17 @@ export default function FlockMovements() {
           const removalPct = f.initial_bird_count > 0
             ? ((f.total_removed / f.initial_bird_count) * 100).toFixed(1)
             : 0
+          const currentAgeWeeks = (f.age_weeks_at_acquisition != null && f.date_acquired)
+            ? f.age_weeks_at_acquisition + Math.floor(dayjs().diff(dayjs(f.date_acquired), 'day') / 7)
+            : null
           return (
             <div key={f.id} className={mStyles.birdCard} style={{ borderTopColor: f.color }}>
               <div className={mStyles.birdCardHeader}>
                 <span className={mStyles.flockDot} style={{ background: f.color }} />
                 <span className={mStyles.flockName}>{f.name}</span>
+                {currentAgeWeeks != null && (
+                  <span className={mStyles.ageTag}>{currentAgeWeeks} wks old</span>
+                )}
               </div>
               <div className={mStyles.birdStat}>
                 <div>

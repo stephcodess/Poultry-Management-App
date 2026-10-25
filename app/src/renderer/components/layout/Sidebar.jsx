@@ -2,6 +2,7 @@ import React from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../utils/AuthContext'
 import styles from './Sidebar.module.css'
+import chickenLogo from '../../assets/chicken-logo.jpg'
 
 const NAV_ITEMS = [
   { to: '/dashboard',  label: 'Dashboard',      icon: '▦',  tour: 'nav-dashboard'  },
@@ -39,7 +40,7 @@ export default function Sidebar() {
   return (
     <aside className={styles.sidebar}>
       <div className={styles.brand}>
-        <div className={styles.brandIcon}>🐔</div>
+        <img src={chickenLogo} alt="logo" className={styles.brandIcon} />
         <div>
           <div className={styles.brandName}>Eldesign</div>
           <div className={styles.brandSub}>Poultry Farm</div>

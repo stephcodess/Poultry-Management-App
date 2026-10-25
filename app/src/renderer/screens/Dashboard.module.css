@@ -97,6 +97,43 @@
   background: rgba(255,255,255,0.2);
 }
 
+/* ── Flock Age Strip ────────────────────────────────────────── */
+.flockAgeStrip {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.flockAgeChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 100px;
+  padding: 5px 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.flockAgeDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.flockAgeName {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.flockAgeValue {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
 /* ── Section label ──────────────────────────────────────────── */
 .sectionLabel {
   font-size: 12.5px;

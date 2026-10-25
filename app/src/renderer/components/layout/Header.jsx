@@ -6,6 +6,7 @@ import { formatMonthYear } from '../../utils/format'
 import { buildMonthlyReportHtml, buildAnnualReportHtml } from '../../utils/buildReport'
 import ReportPreviewModal from '../common/ReportPreviewModal'
 import AnnualAnalysisModal from '../common/AnnualAnalysisModal'
+import PoultryControlRecord from '../common/PoultryControlRecord'
 import styles from './Header.module.css'
 
 const TITLES = {
@@ -33,17 +34,10 @@ export default function Header() {
 
   const [showPreview, setShowPreview]         = useState(false)
   const [showAnnual, setShowAnnual]           = useState(false)
+  const [showControlRecord, setShowControlRecord] = useState(false)
   const [exporting, setExporting]             = useState(false)
   const [exportingAnnual, setExportingAnnual] = useState(false)
-  const [syncStatus, setSyncStatus]           = useState(null) // 'syncing' | 'ok' | 'error'
-
-  useEffect(() => {
-    window.api.sync.onAutoSyncComplete(result => {
-      setSyncStatus(result.success ? 'ok' : 'error')
-      setTimeout(() => setSyncStatus(null), 4000)
-    })
-    return () => window.api.sync.offAutoSyncComplete()
-  }, [])
+  const [syncStatus, setSyncStatus]           = useState(null) // 'ok' | 'error'
 
   // Monthly PDF export (called from preview modal)
   async function handleMonthlyExport() {
@@ -98,6 +92,12 @@ export default function Header() {
             <>
               <button
                 className={styles.annualBtn}
+                onClick={() => setShowControlRecord(true)}
+              >
+                📋 Control Record
+              </button>
+              <button
+                className={styles.annualBtn}
                 onClick={() => setShowAnnual(true)}
                 data-tour="annual-btn"
               >
@@ -108,7 +108,7 @@ export default function Header() {
                 onClick={() => setShowPreview(true)}
                 data-tour="export-btn"
               >
-                ⬇ Export PDF
+                📈 Monthly Analysis
               </button>
               <label className={styles.monthLabel}>Month</label>
               <input
@@ -140,6 +140,10 @@ export default function Header() {
           onExportPdf={handleMonthlyExport}
           exporting={exporting}
         />
+      )}
+
+      {showControlRecord && (
+        <PoultryControlRecord onClose={() => setShowControlRecord(false)} />
       )}
 
       {showAnnual && (

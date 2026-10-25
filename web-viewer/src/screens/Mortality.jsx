@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import dayjs from 'dayjs'
 import { supabase } from '../supabaseClient'
 import { useMonth } from '../utils/MonthContext'
 import { formatDate } from '../utils/format'
@@ -9,18 +10,25 @@ export default function Mortality() {
   const { monthYear } = useMonth()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState([])
+  const [flocks, setFlocks] = useState([])
 
   useEffect(() => {
     setLoading(true)
-    supabase
-      .from('flock_movements')
-      .select('*, flocks(name, color)')
-      .eq('month_year', monthYear)
-      .order('date', { ascending: true })
-      .then(({ data: rows }) => {
-        setData(rows || [])
-        setLoading(false)
-      })
+    Promise.all([
+      supabase
+        .from('flock_movements')
+        .select('*, flocks(name, color)')
+        .eq('month_year', monthYear)
+        .order('date', { ascending: true }),
+      supabase
+        .from('flocks')
+        .select('id, name, color, initial_bird_count, date_acquired, age_weeks_at_acquisition')
+        .eq('is_active', 1),
+    ]).then(([{ data: rows }, { data: fl }]) => {
+      setData(rows || [])
+      setFlocks(fl || [])
+      setLoading(false)
+    })
   }, [monthYear])
 
   const totalRemoved = data.reduce((sum, r) => sum + (r.count || 0), 0)
@@ -58,6 +66,23 @@ export default function Mortality() {
 
   return (
     <div className={s.page}>
+      {flocks.some(f => f.age_weeks_at_acquisition != null && f.date_acquired) && (
+        <div className={s.summaryBar} style={{ borderBottom: 'none', paddingBottom: 0 }}>
+          {flocks.filter(f => f.age_weeks_at_acquisition != null && f.date_acquired).map(f => {
+            const weeksElapsed = Math.floor(dayjs().diff(dayjs(f.date_acquired), 'day') / 7)
+            const currentAge = f.age_weeks_at_acquisition + weeksElapsed
+            const removed = data.reduce((sum, m) => m.flocks?.name === f.name ? sum + (m.count || 0) : sum, 0)
+            const liveBirds = Math.max((f.initial_bird_count || 0) - removed, 0)
+            return (
+              <div key={f.id} className={s.kpiCard} style={{ borderLeft: `4px solid ${f.color || '#2563eb'}` }}>
+                <div className={s.kpiLabel}>{f.name}</div>
+                <div className={s.kpiValue}>{currentAge} <span style={{ fontSize: 14, fontWeight: 500 }}>wks old</span></div>
+                <div className={s.kpiSub}>{liveBirds.toLocaleString()} live birds</div>
+              </div>
+            )
+          })}
+        </div>
+      )}
       <div className={`${s.summaryBar} ${s.summaryGrid2}`}>
         <div className={`${s.kpiCard} ${s.kpiCard_red}`}>
           <div className={s.kpiLabel}>Total Removed</div>

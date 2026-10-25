@@ -14,6 +14,8 @@ const NAV_ITEMS = [
   { to: '/mortality',  label: 'Flock Movement', icon: '🐓' },
   { to: '/feed',       label: 'Feed Log',       icon: '🌾' },
   { to: '/health',     label: 'Health Records', icon: '🏥' },
+  { divider: true, label: 'REPORTS' },
+  { to: '/reports',    label: 'Control Record', icon: '📄' },
 ]
 
 const ROLE_COLORS = {

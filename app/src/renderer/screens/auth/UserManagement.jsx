@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../utils/AuthContext'
 import styles from './UserManagement.module.css'
+import PageLoader from '../../components/common/PageLoader'
 
 const ROLE_LABELS = { owner: 'Owner', admin: 'Admin', editor: 'Editor', viewer: 'Viewer' }
 const ROLE_ORDER = { owner: 4, admin: 3, editor: 2, viewer: 1 }
@@ -113,7 +114,7 @@ export default function UserManagement() {
 
       <div className={styles.tableWrapper}>
         {loading ? (
-          <div className={styles.loadingRow}>Loading users...</div>
+          <PageLoader />
         ) : (
           <table className={styles.table}>
             <thead>

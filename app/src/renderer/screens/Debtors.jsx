@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import PageLoader from '../components/common/PageLoader'
 import { formatDate, formatCurrency, toMonthYear } from '../utils/format'
 import Table from '../components/common/Table'
 import Button from '../components/common/Button'
@@ -83,13 +84,17 @@ export default function Debtors() {
   const [viewPaymentsSale, setViewPaymentsSale] = useState(null)
   const [payments, setPayments] = useState([])
 
+  const [loading, setLoading] = useState(true)
+
   const loadCustomers = useCallback(async () => {
+    setLoading(true)
     const data = await window.api.debtors.getCustomers()
     setCustomers(data || [])
     if (selectedCustomer) {
       const updated = (data || []).find(c => c.id === selectedCustomer.id)
       if (updated) setSelectedCustomer(updated)
     }
+    setLoading(false)
   }, [selectedCustomer])
 
   const loadSales = useCallback(async (customerId) => {
@@ -112,6 +117,8 @@ export default function Debtors() {
     if (selectedCustomer) loadSales(selectedCustomer.id)
     else setSales([])
   }, [selectedCustomer])
+
+  if (loading) return <PageLoader />
 
   const totalOutstanding = customers.reduce((s, c) => s + (c.outstanding || 0), 0)
   const customersWithDebt = customers.filter(c => (c.outstanding || 0) > 0).length

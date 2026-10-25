@@ -262,6 +262,7 @@ function runMigrations() {
     try { db.exec(`ALTER TABLE flocks ADD COLUMN ${col} TEXT`) } catch {}
   })
   try { db.exec('ALTER TABLE flocks ADD COLUMN target_yield_pct REAL NOT NULL DEFAULT 80') } catch {}
+  try { db.exec('ALTER TABLE flocks ADD COLUMN age_weeks_at_acquisition INTEGER') } catch {}
 
   // Migration: add feed purchase columns to expenses
   ;['feed_type', 'supplier'].forEach(col => {
@@ -294,7 +295,7 @@ function runMigrations() {
     insertPrice.run('Others', 0, 3)
   }
 
-  // Seed owner account — set password immediately if MASTER_PASSWORD is provided
+  // Seed owner account only as local fallback (Supabase is source of truth)
   const masterEmail = process.env.MASTER_EMAIL
   const masterPassword = process.env.MASTER_PASSWORD
   if (masterEmail) {
@@ -303,11 +304,38 @@ function runMigrations() {
       const hash = masterPassword ? bcrypt.hashSync(masterPassword, 12) : null
       db.prepare("INSERT INTO users (name, email, role, is_active, password_hash) VALUES (?, ?, 'owner', 1, ?)").run('Farm Owner', masterEmail, hash)
     } else if (!existing.password_hash && masterPassword) {
-      // Password added to env after initial setup — apply it now
       const hash = bcrypt.hashSync(masterPassword, 12)
       db.prepare("UPDATE users SET password_hash = ? WHERE email = ?").run(hash, masterEmail)
     }
   }
+
+  // Water intake log
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS water_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      month_year TEXT NOT NULL,
+      flock_id INTEGER REFERENCES flocks(id) ON DELETE SET NULL,
+      litres REAL NOT NULL DEFAULT 0,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_water_month ON water_log(month_year);
+  `)
+
+  // Offline write queue — stores failed Supabase writes for later retry
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS offline_queue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      table_name TEXT NOT NULL,
+      remote_table TEXT,
+      operation TEXT NOT NULL CHECK(operation IN ('upsert','delete')),
+      conflict_key TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+  `)
 
   // Seed default settings
   const settingsData = [

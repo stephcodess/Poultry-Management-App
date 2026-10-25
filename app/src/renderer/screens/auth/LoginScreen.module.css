@@ -98,6 +98,13 @@
   padding: 28px 36px 0;
 }
 .panelTopLogo { font-size: 30px; line-height: 1; }
+.panelTopLogoImg {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  mix-blend-mode: multiply;
+}
 .panelTopName {
   font-size: 15px; font-weight: 800; color: #fff;
   letter-spacing: -0.2px;
@@ -159,6 +166,15 @@
   margin: 0 auto 12px;
   font-size: 70px; line-height: 1;
   box-shadow: 0 0 40px rgba(56,189,248,0.15), 0 0 80px rgba(37,99,235,0.1);
+}
+.panelMascotImg {
+  width: 130px; height: 130px; border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 12px;
+  display: block;
+  border: 2px solid rgba(56,189,248,0.35);
+  box-shadow: 0 0 40px rgba(56,189,248,0.2), 0 0 80px rgba(37,99,235,0.12);
+  mix-blend-mode: multiply;
 }
 .panelMascotTag {
   display: inline-block;

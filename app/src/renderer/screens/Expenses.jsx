@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import PageLoader from '../components/common/PageLoader'
 import { useMonth } from '../utils/MonthContext'
 import { formatDate, formatCurrency, PAYMENT_METHODS, EXPENSE_CATEGORIES, toMonthYear } from '../utils/format'
 import Table from '../components/common/Table'
@@ -48,7 +49,10 @@ export default function Expenses() {
   const [showBagKgModal, setShowBagKgModal] = useState(false)
   const [bagKgDraft, setBagKgDraft] = useState('')
 
+  const [loading, setLoading] = useState(true)
+
   const load = useCallback(async () => {
+    setLoading(true)
     await window.api.balance.autoLoad(monthYear)
     const [r, s, b, ss, cfg] = await Promise.all([
       window.api.expenses.getAll(monthYear),
@@ -62,6 +66,7 @@ export default function Expenses() {
     setBalance(b)
     setSalesSummary(ss)
     if (cfg.feed_bag_kg) setBagKg(Number(cfg.feed_bag_kg))
+    setLoading(false)
   }, [monthYear])
 
   useEffect(() => { load() }, [load])
@@ -167,6 +172,8 @@ export default function Expenses() {
       )
     },
   ]
+
+  if (loading) return <PageLoader />
 
   return (
     <div className={styles.page}>

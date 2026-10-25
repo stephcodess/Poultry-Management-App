@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import PageLoader from '../components/common/PageLoader'
 import { useMonth } from '../utils/MonthContext'
 import { formatDate, formatEggs, toMonthYear } from '../utils/format'
 import Table from '../components/common/Table'
@@ -28,8 +29,10 @@ export default function Production() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [showOpeningModal, setShowOpeningModal] = useState(false)
   const [openingForms, setOpeningForms] = useState({})
+  const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
+    setLoading(true)
     const [r, s, f, movSummary] = await Promise.all([
       window.api.production.getAll(monthYear),
       window.api.production.getSummary(monthYear),
@@ -55,6 +58,7 @@ export default function Production() {
       openingInit[flock.id] = existing[flock.id] || { crates: 0, pieces: 0 }
     })
     setOpeningForms(openingInit)
+    setLoading(false)
   }, [monthYear])
 
   useEffect(() => { load() }, [load])
@@ -161,6 +165,8 @@ export default function Production() {
       )
     },
   ]
+
+  if (loading) return <PageLoader />
 
   return (
     <div className={styles.page}>

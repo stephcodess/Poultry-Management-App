@@ -92,6 +92,7 @@ contextBridge.exposeInMainWorld('api', {
     update: (id, record) => invoke('mortality:update', id, record, _session),
     delete: (id) => invoke('mortality:delete', id, _session),
     getSummary: (monthYear) => invoke('mortality:getSummary', monthYear),
+    getRange: (opts) => invoke('mortality:getRange', opts),
   },
 
   // Feed Log
@@ -102,6 +103,7 @@ contextBridge.exposeInMainWorld('api', {
     delete: (id) => invoke('feed:delete', id, _session),
     getSummary: (monthYear) => invoke('feed:getSummary', monthYear),
     getStock: () => invoke('feed:getStock'),
+    getRange: (opts) => invoke('feed:getRange', opts),
   },
 
   // Health Records
@@ -112,6 +114,7 @@ contextBridge.exposeInMainWorld('api', {
     update: (id, record) => invoke('health:update', id, record, _session),
     delete: (id) => invoke('health:delete', id, _session),
     getSummary: (monthYear) => invoke('health:getSummary', monthYear),
+    getRange: (opts) => invoke('health:getRange', opts),
   },
 
   // Monthly Balance
@@ -133,16 +136,28 @@ contextBridge.exposeInMainWorld('api', {
     chat: (payload) => invoke('ai:chat', payload),
   },
 
+  // Water Log
+  water: {
+    getAll: (monthYear) => invoke('water:getAll', monthYear),
+    add: (record) => invoke('water:add', record, _session),
+    update: (id, record) => invoke('water:update', id, record, _session),
+    delete: (id) => invoke('water:delete', id, _session),
+    getSummary: (monthYear) => invoke('water:getSummary', monthYear),
+    getRange: (opts) => invoke('water:getRange', opts),
+  },
+
+  // Reports
+  report: {
+    poultryControl: (opts) => invoke('report:poultryControl', opts),
+  },
+
   sync: {
     toSupabase: () => invoke('sync:toSupabase'),
+    fromSupabase: () => invoke('sync:fromSupabase'),
+    flushQueue: () => invoke('sync:flushQueue'),
+    getQueueCount: () => invoke('sync:getQueueCount'),
     getLastSync: () => invoke('sync:getLastSync'),
     saveLastSync: (iso) => invoke('sync:saveLastSync', iso),
-    onAutoSyncComplete: (cb) => {
-      ipcRenderer.on('sync:autoSyncComplete', (_, result) => cb(result))
-    },
-    offAutoSyncComplete: () => {
-      ipcRenderer.removeAllListeners('sync:autoSyncComplete')
-    },
   },
 
   // Debtors (credit customers + credit sales + payments)

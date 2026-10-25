@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react'
+import dayjs from 'dayjs'
+import PageLoader from '../components/common/PageLoader'
 import { useMonth } from '../utils/MonthContext'
 import { formatCurrency, formatEggs, formatMonthYear } from '../utils/format'
 import {
@@ -154,10 +156,11 @@ export default function Dashboard() {
     prodRecords,
   })
 
+  if (loading) return <PageLoader />
+
   return (
     <div className={styles.page}>
-      {/* Smart Recommendations */}
-      {!loading && <Recommendations recommendations={recommendations} />}
+      <Recommendations recommendations={recommendations} />
 
       {/* Hero Banner */}
       <div className={styles.hero}>
@@ -196,6 +199,23 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Flock Age Strip */}
+      {flocks.some(f => f.age_weeks_at_acquisition != null && f.date_acquired) && (
+        <div className={styles.flockAgeStrip}>
+          {flocks.filter(f => f.age_weeks_at_acquisition != null && f.date_acquired).map(f => {
+            const weeksElapsed = Math.floor(dayjs().diff(dayjs(f.date_acquired), 'day') / 7)
+            const currentAge = f.age_weeks_at_acquisition + weeksElapsed
+            return (
+              <div key={f.id} className={styles.flockAgeChip}>
+                <span className={styles.flockAgeDot} style={{ background: f.color }} />
+                <span className={styles.flockAgeName}>{f.name}</span>
+                <span className={styles.flockAgeValue}>{currentAge} wks old</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* KPI Row 1 — Eggs */}
       <div className={styles.sectionLabel}>Egg Inventory</div>

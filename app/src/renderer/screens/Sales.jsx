@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import PageLoader from '../components/common/PageLoader'
 import { useMonth } from '../utils/MonthContext'
 import { formatDate, formatCurrency, formatEggs, toMonthYear } from '../utils/format'
 import Table from '../components/common/Table'
@@ -48,7 +49,10 @@ export default function Sales() {
   const [newCustomerName, setNewCustomerName] = useState('')
   const [newCustomerPhone, setNewCustomerPhone] = useState('')
 
+  const [loading, setLoading] = useState(true)
+
   const load = useCallback(async () => {
+    setLoading(true)
     const [s, d, sm, p, f, c] = await Promise.all([
       window.api.sales.getAll(monthYear),
       window.api.domestic.getAll(monthYear),
@@ -63,6 +67,7 @@ export default function Sales() {
     setPrices(p)
     setFlocks(f)
     setCustomers(c)
+    setLoading(false)
   }, [monthYear])
 
   useEffect(() => { load() }, [load])
@@ -300,6 +305,8 @@ export default function Sales() {
       )
     },
   ]
+
+  if (loading) return <PageLoader />
 
   return (
     <div className={styles.page}>
