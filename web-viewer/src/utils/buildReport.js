@@ -291,6 +291,7 @@ export function buildMonthlyReportHtml({ summary, production, sales, domestic, e
 
   // ── Feed aggregates ───────────────────────────────────────
   const totalFeedKg   = feed.reduce((s, r) => s + (r.quantity_kg || 0), 0)
+  const totalFeedCost = feed.reduce((s, r) => s + (r.total_cost || 0), 0)
   const feedByType = {}
   feed.forEach(r => {
     if (!feedByType[r.feed_type]) feedByType[r.feed_type] = { kg: 0 }

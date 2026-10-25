@@ -144,8 +144,8 @@ function PreviewPanel({ html, filename, onBack }) {
         </button>
         {error && <span style={{ fontSize: 13, color: '#dc2626' }}>⚠ {error}</span>}
       </div>
-      <div style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden', minHeight: '75vh' }}>
-        <iframe ref={iframeRef} title="Report Preview" style={{ width: '100%', height: '100%', border: 'none', minHeight: '75vh' }} />
+      <div style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'auto', minHeight: '75vh', background: '#f1f5f9' }}>
+        <iframe ref={iframeRef} title="Report Preview" style={{ width: '100%', minWidth: 900, height: '100%', minHeight: '80vh', border: 'none', display: 'block' }} />
       </div>
     </div>
   )
@@ -156,9 +156,11 @@ function MonthlyReport() {
   const { monthYear } = useMonth()
   const [loading, setLoading] = useState(false)
   const [previewHtml, setPreviewHtml] = useState(null)
+  const [error, setError] = useState(null)
 
   async function generate() {
     setLoading(true)
+    setError(null)
     try {
       const [
         { data: summarySettings },
@@ -233,13 +235,15 @@ function MonthlyReport() {
         mortality: flatMort, settings, monthYear, feedStock,
       })
       setPreviewHtml(html)
+    } catch (err) {
+      setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
   if (previewHtml) {
-    return <PreviewPanel html={previewHtml} filename={`Eldesign_Poultry_${monthYear}.pdf`} onBack={() => setPreviewHtml(null)} />
+    return <PreviewPanel html={previewHtml} filename={`Eldesign_Poultry_${monthYear}.pdf`} onBack={() => { setPreviewHtml(null); setError(null) }} />
   }
 
   return (
@@ -247,6 +251,7 @@ function MonthlyReport() {
       <p style={{ margin: '0 0 20px', color: '#64748b', fontSize: 14, lineHeight: 1.6 }}>
         Generates a full monthly farm report for <strong>{dayjs(monthYear + '-01').format('MMMM YYYY')}</strong> — production, sales, expenses, feed, health, mortality, and pricing intelligence.
       </p>
+      {error && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 12, background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px' }}>⚠ {error}</p>}
       <Button onClick={generate} disabled={loading}>
         {loading ? 'Generating…' : 'Preview Monthly Report →'}
       </Button>
@@ -262,11 +267,13 @@ function AnnualReport() {
   const [loading, setLoading] = useState(false)
   const [previewHtml, setPreviewHtml] = useState(null)
   const [activeMonths, setActiveMonths] = useState(0)
+  const [error, setError] = useState(null)
 
   const yearOptions = Array.from({ length: 5 }, (_, i) => String(Number(currentYear) - i))
 
   async function generate() {
     setLoading(true)
+    setError(null)
     try {
       const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`)
 
@@ -316,13 +323,15 @@ function AnnualReport() {
 
       const html = buildAnnualReportHtml({ year, monthlyData, settings, feedStock })
       setPreviewHtml(html)
+    } catch (err) {
+      setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
   if (previewHtml) {
-    return <PreviewPanel html={previewHtml} filename={`Eldesign_Poultry_Annual_${year}.pdf`} onBack={() => setPreviewHtml(null)} />
+    return <PreviewPanel html={previewHtml} filename={`Eldesign_Poultry_Annual_${year}.pdf`} onBack={() => { setPreviewHtml(null); setError(null) }} />
   }
 
   return (
@@ -336,6 +345,7 @@ function AnnualReport() {
           {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>
+      {error && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 12, background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px' }}>⚠ {error}</p>}
       <Button onClick={generate} disabled={loading}>
         {loading ? 'Loading 12 months…' : 'Preview Annual Report →'}
       </Button>
