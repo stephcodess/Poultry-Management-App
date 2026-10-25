@@ -270,6 +270,37 @@
   color: var(--color-text);
 }
 
+/* Debtor layout: side-by-side on desktop, stacked on mobile */
+.debtorLayout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  min-height: 400px;
+  padding: 0 16px 16px;
+}
+
+.customerList {
+  width: 260px;
+  flex-shrink: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.debtorDetail {
+  flex: 1;
+  min-width: 0;
+}
+
+.statCard {
+  flex: 1;
+  min-width: 140px;
+}
+
+.customerStats {
+  display: flex;
+  gap: 24px;
+}
+
 @media (max-width: 767px) {
   .summaryGrid2 { grid-template-columns: 1fr 1fr; padding: 12px; }
   .summaryGrid3 { grid-template-columns: 1fr 1fr; padding: 12px; }
@@ -278,5 +309,40 @@
   .sectionTitle { padding: 12px 12px 4px; }
   .tableWrapper { padding: 12px; }
   .statsRow { padding: 12px; gap: 8px; }
-  .tableCard { margin: 0 12px 12px; }
+  .tableCard { margin: 0 0 12px; }
+
+  .debtorLayout {
+    flex-direction: column;
+    padding: 0 0 16px;
+    gap: 12px;
+    min-height: unset;
+  }
+
+  .customerList {
+    width: 100%;
+  }
+
+  .debtorDetail {
+    width: 100%;
+  }
+
+  .statCard {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+  }
+
+  .customerStats {
+    gap: 12px;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .customerStats > div {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .customerStats > div > div:first-child {
+    font-size: 15px !important;
+  }
 }

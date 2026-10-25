@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
+import { jsPDF } from 'jspdf'
+import html2canvas from 'html2canvas'
 import { supabase } from '../supabaseClient'
 import { buildPoultryControlHtml } from '../utils/buildPoultryControlReport'
 import Button from '../components/common/Button'
@@ -80,7 +82,10 @@ export default function Reports() {
   const [flocks, setFlocks] = useState([])
   const [selectedFlocks, setSelectedFlocks] = useState([])
   const [loading, setLoading] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState(null)
   const [previewHtml, setPreviewHtml] = useState(null)
+  const [reportFilename, setReportFilename] = useState('report.pdf')
   const iframeRef = useRef(null)
 
   useEffect(() => {
@@ -148,9 +153,66 @@ export default function Reports() {
         to,
         settings,
       })
+
+      const flockLabel = selectedFlocks.length === 0
+        ? 'All_Flocks'
+        : filteredFlocks.map(f => f.name.replace(/\s+/g, '_')).join('_')
+      setReportFilename(`Poultry_Control_Record_${from}_to_${to}_${flockLabel}.pdf`)
       setPreviewHtml(html)
+      setDownloadError(null)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleDownload() {
+    if (!previewHtml) return
+    setDownloading(true)
+    setDownloadError(null)
+
+    // Render the report HTML into a temporary offscreen container
+    const container = document.createElement('div')
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;font-family:Arial,sans-serif;'
+    // Strip the outer HTML/head/body wrapper — jsPDF needs just the body content
+    const bodyMatch = previewHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i)
+    container.innerHTML = bodyMatch ? bodyMatch[1] : previewHtml
+    document.body.appendChild(container)
+
+    try {
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const pageWidth = pdf.internal.pageSize.getWidth()   // 210mm
+      const pageHeight = pdf.internal.pageSize.getHeight() // 297mm
+      const margin = 14  // mm
+
+      // Each flock is in its own page-break div — split and render one canvas per page
+      const pages = container.querySelectorAll('div[style*="page-break-after"]')
+      const items = pages.length > 0 ? Array.from(pages) : [container]
+
+      for (let i = 0; i < items.length; i++) {
+        if (i > 0) pdf.addPage()
+
+        const canvas = await html2canvas(items[i], {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          width: 794,
+        })
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.95)
+        const canvasWidthMm  = pageWidth - margin * 2
+        const canvasHeightMm = (canvas.height / canvas.width) * canvasWidthMm
+
+        // If content is taller than one page, scale it to fit
+        const usedHeight = Math.min(canvasHeightMm, pageHeight - margin * 2)
+        pdf.addImage(imgData, 'JPEG', margin, margin, canvasWidthMm, usedHeight)
+      }
+
+      pdf.save(reportFilename)
+    } catch (err) {
+      setDownloadError('PDF generation failed: ' + err.message)
+    } finally {
+      document.body.removeChild(container)
+      setDownloading(false)
     }
   }
 
@@ -169,6 +231,11 @@ export default function Reports() {
     iframeRef.current.contentWindow.print()
   }
 
+  function handleBack() {
+    setPreviewHtml(null)
+    setDownloadError(null)
+  }
+
   const dayCount = from && to && from <= to ? dayjs(to).diff(dayjs(from), 'day') + 1 : 0
   const flockSummary = selectedFlocks.length === 0 ? 'All Flocks'
     : selectedFlocks.length === 1 ? flocks.find(f => f.id === selectedFlocks[0])?.name
@@ -181,7 +248,7 @@ export default function Reports() {
       {!previewHtml ? (
         <div style={{ padding: '16px 24px', maxWidth: 700 }}>
           <p style={{ margin: '0 0 20px', color: '#64748b', fontSize: 14, lineHeight: 1.6 }}>
-            Select a date range and flocks to generate the Poultry Control Record. You can then print it or save as PDF using your browser's print dialog.
+            Select a date range and flocks to generate and download the Poultry Control Record as a PDF.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
@@ -217,9 +284,21 @@ export default function Reports() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: '0 24px 24px' }}>
-          <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-            <Button variant="secondary" onClick={() => setPreviewHtml(null)}>← Back</Button>
-            <Button onClick={handlePrint}>🖨 Print / Save as PDF</Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+            <Button variant="secondary" onClick={handleBack}>← Back</Button>
+            <Button onClick={handleDownload} disabled={downloading}>
+              {downloading ? 'Generating PDF…' : '⬇ Download PDF'}
+            </Button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              style={{ fontSize: 13, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 4px', textDecoration: 'underline' }}
+            >
+              🖨 Print instead
+            </button>
+            {downloadError && (
+              <span style={{ fontSize: 13, color: '#dc2626' }}>⚠ {downloadError}</span>
+            )}
           </div>
           <div style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden', minHeight: '75vh' }}>
             <iframe

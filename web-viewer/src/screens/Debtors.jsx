@@ -121,26 +121,26 @@ export default function Debtors() {
   return (
     <div className={s.page}>
       <div className={s.statsRow}>
-        <div className={s.card}>
+        <div className={`${s.card} ${s.statCard}`}>
           <div className={s.cardLabel}>Total Outstanding</div>
           <div className={s.cardValue} style={{ color:'#dc2626' }}>{formatCurrency(totalOutstanding)}</div>
           <div className={s.cardSub}>across all customers</div>
         </div>
-        <div className={s.card}>
+        <div className={`${s.card} ${s.statCard}`}>
           <div className={s.cardLabel}>Customers with Debt</div>
           <div className={s.cardValue}>{customersWithDebt}</div>
           <div className={s.cardSub}>of {customers.length} total</div>
         </div>
-        <div className={s.card}>
+        <div className={`${s.card} ${s.statCard}`}>
           <div className={s.cardLabel}>Total Customers</div>
           <div className={s.cardValue}>{customers.length}</div>
           <div className={s.cardSub}>credit accounts</div>
         </div>
       </div>
 
-      <div style={{ display:'flex', gap:16, alignItems:'flex-start', minHeight:400 }}>
+      <div className={s.debtorLayout}>
         {/* Customer list */}
-        <div className={s.card} style={{ width:260, flexShrink:0, padding:0, overflow:'hidden' }}>
+        <div className={`${s.card} ${s.customerList}`}>
           <div style={{ padding:'14px 16px', borderBottom:'1px solid #f1f5f9', fontWeight:700, fontSize:14, color:'#0f172a' }}>
             Credit Customers
           </div>
@@ -173,7 +173,7 @@ export default function Debtors() {
         </div>
 
         {/* Right: sales or payment history */}
-        <div style={{ flex:1, minWidth:0 }}>
+        <div className={s.debtorDetail}>
           {!selected ? (
             <div className={s.card} style={{ textAlign:'center', padding:48, color:'#94a3b8' }}>
               Select a customer to view their credit sales
@@ -202,7 +202,7 @@ export default function Debtors() {
                     <div style={{ fontSize:18, fontWeight:800, color:'#0f172a' }}>{selected.name}</div>
                     {selected.phone && <div style={{ fontSize:13, color:'#64748b', marginTop:2 }}>{selected.phone}</div>}
                   </div>
-                  <div style={{ display:'flex', gap:24 }}>
+                  <div className={s.customerStats}>
                     <div style={{ textAlign:'center' }}>
                       <div style={{ fontSize:18, fontWeight:800, color:'#0f172a' }}>{formatCurrency(selected.total_owed || 0)}</div>
                       <div style={{ fontSize:11, color:'#94a3b8' }}>Total Owed ({selected.total_sales} sales)</div>
