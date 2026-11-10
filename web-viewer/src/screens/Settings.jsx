@@ -88,7 +88,7 @@ export default function Settings() {
   }
 
   async function handleSaveFlock(flock) {
-    await supabase.from('flocks').update({
+    const updates = {
       name: flock.name,
       color: flock.color,
       is_active: flock.is_active ? 1 : 0,
@@ -99,7 +99,9 @@ export default function Settings() {
       target_yield_pct: Number(flock.target_yield_pct) || 80,
       age_weeks_at_acquisition: flock.age_weeks_at_acquisition != null && flock.age_weeks_at_acquisition !== ''
         ? Number(flock.age_weeks_at_acquisition) : null,
-    }).eq('id', flock.id)
+    }
+    await supabase.from('flocks').update(updates).eq('id', flock.id)
+    setFlocks(prev => prev.map(f => f.id === flock.id ? { ...f, ...updates } : f))
     flash()
   }
 
@@ -110,37 +112,37 @@ export default function Settings() {
       setFlockError('Cannot delete — this flock has linked records (production, sales, or movements). Deactivate it instead by toggling "Active" off.')
       return
     }
-    load()
+    setFlocks(prev => prev.filter(f => f.id !== id))
   }
 
   async function handleAddFlock() {
     if (!newFlock.name.trim()) return
-    await supabase.from('flocks').insert({
+    const { data } = await supabase.from('flocks').insert({
       name: newFlock.name.trim(),
       color: newFlock.color,
       initial_bird_count: Number(newFlock.initial_bird_count) || 0,
       is_active: 1,
-    })
+    }).select().single()
     setNewFlock({ name: '', color: FLOCK_COLORS[0], initial_bird_count: '' })
-    load()
+    if (data) setFlocks(prev => [...prev, data])
   }
 
   async function handleSavePrice(p) {
     await supabase.from('egg_prices').update({ size: p.size, price_per_crate: Number(p.price_per_crate) }).eq('id', p.id)
+    setPrices(prev => prev.map(x => x.id === p.id ? { ...x, size: p.size, price_per_crate: Number(p.price_per_crate) } : x))
     flash()
   }
 
   async function handleDeletePrice(id) {
-    if (!confirm('Delete this egg size? This will not affect existing sales records.')) return
-    await supabase.from('egg_prices').delete().eq('id', id)
-    load()
+    const { error } = await supabase.from('egg_prices').delete().eq('id', id)
+    if (!error) setPrices(prev => prev.filter(x => x.id !== id))
   }
 
   async function handleAddPrice() {
     if (!newPrice.size.trim()) return
-    await supabase.from('egg_prices').insert({ size: newPrice.size.trim(), price_per_crate: Number(newPrice.price_per_crate) || 0 })
+    const { data } = await supabase.from('egg_prices').insert({ size: newPrice.size.trim(), price_per_crate: Number(newPrice.price_per_crate) || 0 }).select().single()
     setNewPrice({ size: '', price_per_crate: '' })
-    load()
+    if (data) setPrices(prev => [...prev, data])
   }
 
   function updateFlock(id, field, value) {
