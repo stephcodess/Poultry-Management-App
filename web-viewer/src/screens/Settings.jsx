@@ -49,6 +49,7 @@ export default function Settings() {
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [flockError, setFlockError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -103,10 +104,10 @@ export default function Settings() {
   }
 
   async function handleDeleteFlock(id) {
-    if (!confirm('Delete this flock? Production and sales records linked to it will remain but show as "Unknown Flock".')) return
+    setFlockError('')
     const { error } = await supabase.from('flocks').delete().eq('id', id)
     if (error) {
-      alert('Cannot delete this flock — it has linked production, sales, or movement records.\n\nDeactivate it instead by toggling "Active" off.')
+      setFlockError('Cannot delete — this flock has linked records (production, sales, or movements). Deactivate it instead by toggling "Active" off.')
       return
     }
     load()
@@ -181,6 +182,11 @@ export default function Settings() {
       <section className={styles.section}>
         <SectionHead icon="🐓" iconBg="#f0fdf4" iconColor="#16a34a" title="Flocks" desc="Manage flock lifecycle details to get retirement alerts and production benchmarks." />
         <div className={styles.sectionBody}>
+          {flockError && (
+            <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: 8, padding: '10px 14px', fontSize: 14, marginBottom: 12 }}>
+              ⚠ {flockError}
+            </div>
+          )}
           <div className={styles.flockList}>
             {flocks.map(flock => {
               const retireSoon = flock.expected_lay_end &&
