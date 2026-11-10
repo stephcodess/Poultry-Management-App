@@ -101,7 +101,24 @@
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
+
+.editBalanceBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-primary);
+  font-size: 12px;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: 4px;
+  opacity: 0.7;
+  transition: opacity 0.1s;
+}
+.editBalanceBtn:hover { opacity: 1; }
 
 .walletStatValue {
   font-size: 15px;

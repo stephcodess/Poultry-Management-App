@@ -4,6 +4,14 @@ import bcrypt from 'bcryptjs'
 
 const AuthContext = createContext(null)
 
+const PERMISSIONS = {
+  owner:  { write: true,  manage_users: true,  manage_settings: true },
+  admin:  { write: true,  manage_users: true,  manage_settings: true },
+  editor: { write: true,  manage_users: false, manage_settings: false },
+  viewer: { write: false, manage_users: false, manage_settings: false },
+  none:   { write: false, manage_users: false, manage_settings: false },
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined)
 
@@ -38,8 +46,13 @@ export function AuthProvider({ children }) {
     setSession(null)
   }
 
+  function can(permission) {
+    const perms = PERMISSIONS[session?.role] || PERMISSIONS.none
+    return !!perms[permission]
+  }
+
   return (
-    <AuthContext.Provider value={{ session, login, logout }}>
+    <AuthContext.Provider value={{ session, login, logout, can }}>
       {children}
     </AuthContext.Provider>
   )

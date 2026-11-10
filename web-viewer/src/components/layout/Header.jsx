@@ -9,19 +9,22 @@ import styles from './Header.module.css'
 const TITLES = {
   '/dashboard': 'Dashboard',
   '/production': 'Production',
-  '/sales': 'Sales',
+  '/sales': 'Income',
   '/expenses': 'Expenses',
   '/debtors': 'Debtors',
   '/feed': 'Feed Log',
   '/health': 'Health Records',
   '/mortality': 'Flock Movement',
+  '/settings': 'Settings',
+  '/staff': 'Staff Management',
+  '/reports': 'Control Record',
 }
 
 export default function Header({ onMenuToggle }) {
   const { pathname } = useLocation()
   const { monthYear, setMonthYear } = useMonth()
   const [online, setOnline] = useState(true)
-  const title = TITLES[pathname] || 'Farm Viewer'
+  const title = TITLES[pathname] || 'Eldesign Poultry'
 
   useEffect(() => {
     supabase.from('settings').select('key').limit(1)
@@ -46,9 +49,8 @@ export default function Header({ onMenuToggle }) {
         <button className={styles.monthBtn} onClick={nextMonth}>›</button>
       </div>
       <div className={styles.right}>
-        <span className={`${styles.badge} ${styles.readOnly} ${styles.readOnlyBadge}`}>Read-only view</span>
         <span className={`${styles.badge} ${online ? styles.online : styles.offline}`}>
-          {online ? '🟢 Live' : '🔴 Offline'}
+          {online ? '🟢 Synced' : '🔴 Offline'}
         </span>
       </div>
     </header>

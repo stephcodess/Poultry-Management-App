@@ -211,6 +211,57 @@
 
 .field { display: flex; flex-direction: column; gap: 5px; }
 .label { font-size: 13px; font-weight: 600; color: #374151; }
+
+.labelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.addPositionBtn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+  cursor: pointer;
+  padding: 0;
+}
+.addPositionBtn:hover { text-decoration: underline; }
+
+.inlineAddRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.inlineAddRow input { flex: 1; }
+
+.inlineAddConfirm {
+  padding: 8px 14px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.inlineAddConfirm:hover { background: #1d4ed8; }
+
+.inlineAddCancel {
+  padding: 8px 10px;
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #6b7280;
+  cursor: pointer;
+  font-family: inherit;
+}
+.inlineAddCancel:hover { background: #f3f4f6; }
 .input {
   border: 1.5px solid #e2e8f0;
   border-radius: 8px;

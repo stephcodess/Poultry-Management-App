@@ -8,6 +8,15 @@ import styles from './StaffManagement.module.css'
 
 const EMPTY_FORM = { name: '', position: '', phone: '', notes: '', is_active: 1 }
 
+const DEFAULT_POSITIONS = ['Farm Hand', 'Driver', 'Security', 'Accountant', 'Supervisor', 'Cleaner', 'Veterinarian', 'Other']
+
+function loadPositions() {
+  try { return JSON.parse(localStorage.getItem('staff_positions') || '[]') } catch { return [] }
+}
+function savePositions(list) {
+  localStorage.setItem('staff_positions', JSON.stringify(list))
+}
+
 export default function StaffManagement() {
   const { can } = useAuth()
   const [staff, setStaff] = useState([])
@@ -16,6 +25,9 @@ export default function StaffManagement() {
   const [editRecord, setEditRecord] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [error, setError] = useState('')
+  const [customPositions, setCustomPositions] = useState(loadPositions)
+  const [addingPosition, setAddingPosition] = useState(false)
+  const [newPosition, setNewPosition] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -173,9 +185,68 @@ export default function StaffManagement() {
               <Input type="text" value={form.name} placeholder="e.g. Emeka Okafor"
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))} autoFocus required />
             </FormField>
-            <FormField label="Position / Role">
-              <Input type="text" value={form.position} placeholder="e.g. Farm Hand, Driver, Security"
-                onChange={e => setForm(f => ({ ...f, position: e.target.value }))} />
+            <FormField
+              label={
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Position / Role</span>
+                  {!addingPosition && (
+                    <button type="button" className={styles.addPositionBtn} onClick={() => { setAddingPosition(true); setNewPosition('') }}>
+                      + Add Position
+                    </button>
+                  )}
+                </div>
+              }
+            >
+              {addingPosition ? (
+                <div className={styles.inlineAddRow}>
+                  <Input
+                    autoFocus
+                    type="text"
+                    value={newPosition}
+                    placeholder="e.g. Nurse, Mechanic"
+                    onChange={e => setNewPosition(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const val = newPosition.trim()
+                        if (val && ![...DEFAULT_POSITIONS, ...customPositions].includes(val)) {
+                          const updated = [...customPositions, val]
+                          setCustomPositions(updated)
+                          savePositions(updated)
+                          setForm(f => ({ ...f, position: val }))
+                        }
+                        setAddingPosition(false)
+                        setNewPosition('')
+                      }
+                      if (e.key === 'Escape') { setAddingPosition(false); setNewPosition('') }
+                    }}
+                  />
+                  <button type="button" className={styles.inlineAddConfirm} onClick={() => {
+                    const val = newPosition.trim()
+                    if (val && ![...DEFAULT_POSITIONS, ...customPositions].includes(val)) {
+                      const updated = [...customPositions, val]
+                      setCustomPositions(updated)
+                      savePositions(updated)
+                      setForm(f => ({ ...f, position: val }))
+                    }
+                    setAddingPosition(false)
+                    setNewPosition('')
+                  }}>Add</button>
+                  <button type="button" className={styles.inlineAddCancel} onClick={() => { setAddingPosition(false); setNewPosition('') }}>✕</button>
+                </div>
+              ) : (
+                <Select value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))}>
+                  <option value="">— Select position —</option>
+                  <optgroup label="Common">
+                    {DEFAULT_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                  </optgroup>
+                  {customPositions.length > 0 && (
+                    <optgroup label="Custom">
+                      {customPositions.map(p => <option key={p} value={p}>{p}</option>)}
+                    </optgroup>
+                  )}
+                </Select>
+              )}
             </FormField>
             <FormField label="Phone Number">
               <Input type="tel" value={form.phone} placeholder="e.g. 08012345678"

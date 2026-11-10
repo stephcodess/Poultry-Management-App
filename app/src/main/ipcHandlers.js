@@ -20,10 +20,7 @@ async function syncWrite(tableName, operation, payload) {
 }
 
 // ─── CASH RECEIVED HELPER ─────────────────────────────────────────────────────
-// "Cash received" for a month = cash sales revenue
-//   + deposits collected on credit sales created that month
-//   + debt repayments received in that month (may relate to prior-month credit sales)
-// This is the only figure that should feed into wallet/balance calculations.
+// "Cash received" = cash egg sales + credit deposits + debt repayments + other income
 function getCashReceived(db, monthYear) {
   const cashSales = db.prepare(`
     SELECT COALESCE(SUM(total_revenue), 0) AS v
@@ -43,7 +40,13 @@ function getCashReceived(db, monthYear) {
     WHERE month_year = ?
   `).get(monthYear).v
 
-  return cashSales + creditDeposits + debtRepayments
+  const otherIncome = db.prepare(`
+    SELECT COALESCE(SUM(amount), 0) AS v
+    FROM other_income
+    WHERE month_year = ?
+  `).get(monthYear).v
+
+  return cashSales + creditDeposits + debtRepayments + otherIncome
 }
 
 let _mainWindow = null
@@ -68,6 +71,7 @@ function registerHandlers(ipcMain) {
   registerReportHandlers(ipcMain)
   registerSyncHandlers(ipcMain)
   registerStaffHandlers(ipcMain)
+  registerOtherIncomeHandlers(ipcMain)
 }
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
@@ -1549,7 +1553,8 @@ Formatting rules:
 
 function registerDebtorsHandlers(ipcMain) {
   // ── Customers ──────────────────────────────────────────────────────────────
-  ipcMain.handle('debtors:getCustomers', () => {
+  ipcMain.handle('debtors:getCustomers', (_, { includeInactive = false } = {}) => {
+    const whereClause = includeInactive ? '' : 'WHERE c.is_active = 1'
     return getDb().prepare(`
       SELECT c.*,
         COUNT(cs.id) AS total_sales,
@@ -1558,9 +1563,19 @@ function registerDebtorsHandlers(ipcMain) {
         COALESCE(SUM(cs.amount_owed) - SUM(cs.amount_paid), 0) AS outstanding
       FROM credit_customers c
       LEFT JOIN credit_sales cs ON cs.customer_id = c.id
+      ${whereClause}
       GROUP BY c.id
       ORDER BY c.name ASC
     `).all()
+  })
+
+  ipcMain.handle('debtors:setCustomerActive', (_, id, isActive, session) => {
+    const db = getDb()
+    db.prepare("UPDATE credit_customers SET is_active=?, updated_at=datetime('now') WHERE id=?").run(isActive ? 1 : 0, id)
+    const updated = db.prepare('SELECT * FROM credit_customers WHERE id = ?').get(id)
+    logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: isActive ? 'debtors:reactivateCustomer' : 'debtors:deactivateCustomer', entity: 'credit_customer', entityId: id })
+    syncWrite('credit_customers', 'upsert', updated)
+    return { success: true }
   })
 
   ipcMain.handle('debtors:addCustomer', (_, record, session) => {
@@ -1648,10 +1663,20 @@ function registerDebtorsHandlers(ipcMain) {
     const db = getDb()
     const sale = db.prepare('SELECT * FROM credit_sales WHERE id = ?').get(id)
     if (!sale) return { error: 'not_found' }
-    if (sale.amount_paid > 0) return { error: 'has_payments', message: 'Cannot delete a sale that has received payments.' }
-    db.prepare('DELETE FROM credit_sales WHERE id = ?').run(id)
+
+    // Collect payment ids for sync before cascade deletes them
+    const payments = db.prepare('SELECT id FROM debt_payments WHERE credit_sale_id = ?').all(id)
+
+    db.transaction(() => {
+      // Delete the linked sales row so revenue is removed from the sale month
+      db.prepare('DELETE FROM sales WHERE credit_sale_id = ?').run(id)
+      // Deleting credit_sale cascades to debt_payments automatically
+      db.prepare('DELETE FROM credit_sales WHERE id = ?').run(id)
+    })()
+
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'debtors:deleteCreditSale', entity: 'credit_sale', entityId: id })
     syncWrite('credit_sales', 'delete', { id })
+    for (const p of payments) syncWrite('debt_payments', 'delete', { id: p.id })
     return { success: true }
   })
 
@@ -1827,6 +1852,60 @@ function saveLastSync(iso) {
     INSERT INTO settings (key, value, updated_at) VALUES ('last_sync_at', ?, datetime('now'))
     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
   `).run(iso)
+}
+
+// ─── OTHER INCOME ─────────────────────────────────────────────────────────────
+
+function registerOtherIncomeHandlers(ipcMain) {
+  ipcMain.handle('otherIncome:getAll', (_, monthYear) => {
+    return getDb().prepare(
+      'SELECT * FROM other_income WHERE month_year = ? ORDER BY date ASC'
+    ).all(monthYear)
+  })
+
+  ipcMain.handle('otherIncome:add', (_, record, session) => {
+    const db = getDb()
+    const result = db.prepare(`
+      INSERT INTO other_income (date, month_year, category, description, amount, payment_method)
+      VALUES (@date, @month_year, @category, @description, @amount, @payment_method)
+    `).run(record)
+    const inserted = db.prepare('SELECT * FROM other_income WHERE id = ?').get(result.lastInsertRowid)
+    logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'otherIncome:add', entity: 'other_income', entityId: result.lastInsertRowid })
+    syncWrite('other_income', 'upsert', inserted)
+    return inserted
+  })
+
+  ipcMain.handle('otherIncome:update', (_, id, record, session) => {
+    const db = getDb()
+    db.prepare(`
+      UPDATE other_income SET date=@date, month_year=@month_year, category=@category,
+        description=@description, amount=@amount, payment_method=@payment_method,
+        updated_at=datetime('now')
+      WHERE id=@id
+    `).run({ ...record, id })
+    const updated = db.prepare('SELECT * FROM other_income WHERE id = ?').get(id)
+    logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'otherIncome:update', entity: 'other_income', entityId: id })
+    syncWrite('other_income', 'upsert', updated)
+    return { success: true }
+  })
+
+  ipcMain.handle('otherIncome:delete', (_, id, session) => {
+    getDb().prepare('DELETE FROM other_income WHERE id = ?').run(id)
+    logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'otherIncome:delete', entity: 'other_income', entityId: id })
+    syncWrite('other_income', 'delete', { id })
+    return { success: true }
+  })
+
+  ipcMain.handle('otherIncome:getSummary', (_, monthYear) => {
+    const db = getDb()
+    const total = db.prepare(
+      'SELECT COALESCE(SUM(amount), 0) AS v FROM other_income WHERE month_year = ?'
+    ).get(monthYear).v
+    const byCategory = db.prepare(
+      'SELECT category, COALESCE(SUM(amount), 0) AS total FROM other_income WHERE month_year = ? GROUP BY category ORDER BY total DESC'
+    ).all(monthYear)
+    return { total, byCategory }
+  })
 }
 
 // ─── STAFF ────────────────────────────────────────────────────────────────────

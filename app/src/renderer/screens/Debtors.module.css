@@ -118,6 +118,116 @@
   background: #eff6ff;
 }
 
+.customerRowInactive {
+  opacity: 0.55;
+}
+
+.customerRowError {
+  background: #fff7ed;
+  border-left: 3px solid #f97316;
+}
+
+.customerTabs {
+  display: flex;
+  border-bottom: 2px solid var(--color-border, #e5e7eb);
+  background: #f9fafb;
+}
+
+.customerTab {
+  flex: 1;
+  padding: 9px 4px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted, #6b7280);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s;
+}
+
+.customerTab:hover {
+  color: var(--color-text, #111827);
+}
+
+.customerTabActive {
+  color: var(--color-primary, #2563eb);
+  border-bottom-color: var(--color-primary, #2563eb);
+}
+
+.customerTabBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--color-primary-light, #dbeafe);
+  color: var(--color-primary, #2563eb);
+}
+
+.customerTabActive .customerTabBadge {
+  background: var(--color-primary, #2563eb);
+  color: #fff;
+}
+
+.deactivateError {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 12px 0;
+  padding: 10px 12px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #9a3412;
+  line-height: 1.4;
+}
+
+.deactivateErrorIcon {
+  font-size: 15px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.deactivateErrorClose {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9a3412;
+  font-size: 13px;
+  padding: 0 2px;
+  opacity: 0.7;
+}
+
+.deactivateErrorClose:hover {
+  opacity: 1;
+}
+
+.inactiveBadge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 1px 5px;
+  vertical-align: middle;
+}
+
 .customerInfo {
   flex: 1;
   min-width: 0;
@@ -282,6 +392,24 @@
 .iconBtn:hover {
   background: #f3f4f6;
   color: var(--color-text, #111827);
+}
+
+.iconBtnGreen {
+  color: #16a34a;
+}
+
+.iconBtnGreen:hover {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.iconBtnDanger {
+  color: #dc2626;
+}
+
+.iconBtnDanger:hover {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 /* Modal: form rows */

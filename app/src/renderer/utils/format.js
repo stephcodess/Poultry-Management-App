@@ -48,3 +48,14 @@ export const EXPENSE_CATEGORIES = [
   'Equipment', 'Transport', 'Maintenance', 'Miscellaneous',
   ...STAFF_EXPENSE_CATEGORIES,
 ]
+
+export const OTHER_INCOME_CATEGORIES = [
+  'Loan Received',
+  'Director Loan',
+  'Livestock Sale',
+  'Asset Sale',
+  'Capital Injection',
+  'Grant / Subsidy',
+  'Refund',
+  'Other',
+]

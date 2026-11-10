@@ -1,0 +1,229 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+/* ── Top Strip ─────────────────────────────────────────────── */
+.topStrip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* ── Wallet ────────────────────────────────────────────────── */
+.walletBanner {
+  border-radius: var(--radius-md);
+  padding: 18px 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid transparent;
+}
+.walletHealthy { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #bbf7d0; }
+.walletLow     { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-color: #fde68a; }
+.walletNegative{ background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%); border-color: #fecaca; }
+
+.walletLeft { display: flex; align-items: flex-start; gap: 12px; }
+.walletIcon { font-size: 28px; line-height: 1; margin-top: 2px; }
+.walletLabel { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-secondary); margin-bottom: 2px; }
+.walletAmount { font-size: 28px; font-weight: 800; line-height: 1.1; color: var(--color-text); }
+.walletSub { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+
+.walletRight {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  background: rgba(255,255,255,0.55);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.walletStat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 14px;
+  border-right: 1px solid rgba(0,0,0,0.06);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.walletStat:nth-child(2n) { border-right: none; }
+.walletStat:nth-child(n+3) { border-bottom: none; }
+.walletStatLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.walletStatValue { font-size: 15px; font-weight: 700; color: var(--color-text); }
+.editBalanceBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-primary);
+  font-size: 14px;
+  padding: 0 2px;
+}
+
+.walletProgress { }
+.walletProgressTrack {
+  height: 7px;
+  border-radius: 7px;
+  background: rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+.walletProgressFill {
+  height: 100%;
+  border-radius: 7px;
+  transition: width 0.4s;
+}
+.walletProgressLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+/* ── Breakdown card ────────────────────────────────────────── */
+.breakdownCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.breakdownBody {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.categoryList { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+.categoryItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.categoryDot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.categoryName { flex: 1; font-size: 13px; color: #374151; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.categoryBar { flex: 2; height: 5px; border-radius: 5px; background: #f1f5f9; overflow: hidden; }
+.categoryBarFill { height: 100%; border-radius: 5px; }
+.categoryPct { font-size: 11px; color: #94a3b8; width: 28px; text-align: right; flex-shrink: 0; }
+.categoryAmount { font-size: 12px; font-weight: 600; color: #0f172a; width: 80px; text-align: right; flex-shrink: 0; }
+
+.pieWrap { width: 130px; flex-shrink: 0; }
+
+/* ── Toolbar ───────────────────────────────────────────────── */
+.toolbar { display: flex; align-items: center; gap: 14px; }
+.recordCount { font-size: 14px; color: var(--color-text-secondary); }
+
+/* ── Cards ─────────────────────────────────────────────────── */
+.tableWrapper { display: flex; flex-direction: column; gap: 8px; }
+.empty { padding: 40px 24px; text-align: center; color: var(--color-text-secondary); font-size: 14px; }
+
+.expCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.expCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.expCardLeft { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.expCardRight { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+.expDate { font-size: 13px; color: var(--color-text-secondary); font-weight: 500; }
+.expDesc { font-size: 13px; color: var(--color-text-secondary); padding-left: 2px; }
+
+/* ── Badges ────────────────────────────────────────────────── */
+.catBadge {
+  display: inline-block;
+  border-radius: 100px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.payBadge {
+  display: inline-block;
+  background: #f1f5f9;
+  color: #475569;
+  border-radius: 100px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.staffBadge {
+  display: inline-block;
+  background: #ede9fe;
+  color: #6d28d9;
+  border-radius: 100px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.amountCell { font-size: 15px; font-weight: 700; color: #dc2626; }
+.actionBtns { display: flex; gap: 6px; }
+
+/* ── Form ──────────────────────────────────────────────────── */
+.form { display: flex; flex-direction: column; gap: 16px; }
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.sectionDivider {
+  padding-top: 12px;
+  border-top: 2px solid var(--color-border);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.preview {
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* ── Responsive ──────────────────────────────────────────────*/
+@media (max-width: 767px) {
+  .page { padding: 12px; }
+  .topStrip { grid-template-columns: 1fr; }
+  .walletRight { grid-template-columns: 1fr 1fr; }
+  .formGrid { grid-template-columns: 1fr; }
+  .pieWrap { display: none; }
+}
+
+@media (max-width: 480px) {
+  .page { padding: 8px; }
+  .expCardTop { flex-direction: column; align-items: flex-start; }
+  .expCardRight { justify-content: flex-start; }
+}

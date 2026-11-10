@@ -1,0 +1,67 @@
+.page { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
+
+/* Tab bar */
+.tabBar { display: flex; gap: 4px; border-bottom: 1px solid var(--color-border); padding-bottom: 0; overflow-x: auto; }
+.tab { padding: 8px 18px; border: none; background: none; font-size: 14px; font-weight: 500; color: var(--color-text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font-family: var(--font); border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.tab:hover { color: var(--color-text); background: var(--color-bg); }
+.tabActive { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+
+/* Tab content */
+.tabContent { display: flex; flex-direction: column; gap: 16px; }
+
+/* Stats */
+.statsRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.statCard { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.statLabel { font-size: 11px; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+.statValue { font-size: 20px; font-weight: 700; color: var(--color-text); }
+.statSub { font-size: 12px; color: var(--color-text-secondary); }
+
+/* Stock panel */
+.stockPanel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.stockPanelHeader { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: none; border: none; cursor: pointer; font-family: var(--font); border-bottom: 1px solid var(--color-border); }
+.stockPanelHeader:hover { background: var(--color-bg); }
+.stockGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding: 14px 16px; }
+.stockCard { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.stockName { font-size: 13px; font-weight: 700; color: var(--color-text); }
+.stockKg { font-size: 20px; font-weight: 700; color: #16a34a; }
+.stockDetail { font-size: 11px; color: var(--color-text-secondary); }
+.stockProgress { height: 5px; background: #e5e7eb; border-radius: 5px; overflow: hidden; }
+.stockProgressFill { height: 100%; background: #16a34a; border-radius: 5px; transition: width 0.3s; }
+.stockLow { color: #d97706; }
+.stockEmpty { color: #dc2626; }
+
+/* Toolbar */
+.toolbar { display: flex; align-items: center; gap: 12px; }
+.recordCount { font-size: 14px; color: var(--color-text-secondary); }
+
+/* Add-new feed type inline */
+.addTypeRow { display: flex; gap: 8px; align-items: center; padding: 8px 0; }
+
+/* Records */
+.tableWrapper { display: flex; flex-direction: column; gap: 8px; }
+.empty { padding: 40px 24px; text-align: center; color: var(--color-text-secondary); font-size: 14px; }
+
+.recordCard { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
+.recordCardTop { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.recordCardLeft { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.recordCardRight { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+.feedBadge { display: inline-block; background: #dcfce7; color: #15803d; border-radius: 100px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+.waterBadge { display: inline-block; background: #dbeafe; color: #1d4ed8; border-radius: 100px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+.flockBadge { display: inline-block; border: 1px solid; border-radius: 100px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+.quantityCell { font-size: 15px; font-weight: 700; color: var(--color-text); }
+
+/* Form */
+.form { display: flex; flex-direction: column; gap: 16px; }
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+@media (max-width: 767px) {
+  .page { padding: 12px; }
+  .stockGrid { grid-template-columns: 1fr 1fr; }
+  .formGrid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .page { padding: 8px; }
+  .stockGrid { grid-template-columns: 1fr; }
+  .recordCardTop { flex-direction: column; align-items: flex-start; }
+}

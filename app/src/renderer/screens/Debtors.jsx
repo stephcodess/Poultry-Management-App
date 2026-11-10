@@ -85,14 +85,17 @@ export default function Debtors() {
   const [payments, setPayments] = useState([])
 
   const [loading, setLoading] = useState(true)
+  const [customerTab, setCustomerTab] = useState('owing') // 'owing' | 'cleared' | 'inactive'
+  const [deactivateError, setDeactivateError] = useState(null) // { customerId, message }
 
   const loadCustomers = useCallback(async () => {
     setLoading(true)
-    const data = await window.api.debtors.getCustomers()
+    const data = await window.api.debtors.getCustomers({ includeInactive: true })
     setCustomers(data || [])
     if (selectedCustomer) {
       const updated = (data || []).find(c => c.id === selectedCustomer.id)
       if (updated) setSelectedCustomer(updated)
+      else setSelectedCustomer(null)
     }
     setLoading(false)
   }, [selectedCustomer])
@@ -120,9 +123,17 @@ export default function Debtors() {
 
   if (loading) return <PageLoader />
 
-  const totalOutstanding = customers.reduce((s, c) => s + (c.outstanding || 0), 0)
-  const customersWithDebt = customers.filter(c => (c.outstanding || 0) > 0).length
+  const activeCustomers = customers.filter(c => c.is_active !== 0)
+  const totalOutstanding = activeCustomers.reduce((s, c) => s + (c.outstanding || 0), 0)
+  const customersWithDebt = activeCustomers.filter(c => (c.outstanding || 0) > 0).length
   const totalSalesCount = customers.reduce((s, c) => s + (c.total_sales || 0), 0)
+
+  const tabCustomers = {
+    owing:    customers.filter(c => c.is_active !== 0 && (c.outstanding || 0) > 0),
+    cleared:  customers.filter(c => c.is_active !== 0 && (c.outstanding || 0) <= 0),
+    inactive: customers.filter(c => c.is_active === 0),
+  }
+  const visibleCustomers = tabCustomers[customerTab] || []
 
   function openAddCustomer() {
     setEditCustomer(null)
@@ -147,14 +158,26 @@ export default function Debtors() {
     loadCustomers()
   }
 
-  async function handleDeleteCustomer(c) {
-    if (!confirm(`Delete customer "${c.name}"?`)) return
-    const result = await window.api.debtors.deleteCustomer(c.id)
-    if (result && result.error === 'has_unpaid') {
-      alert('Cannot delete: this customer has unpaid credit sales.')
+  async function handleDeactivateCustomer(c) {
+    if ((c.outstanding || 0) > 0) {
+      setDeactivateError({ customerId: c.id, message: `${c.name} still has an outstanding balance of ${formatCurrency(c.outstanding)}. Clear all debts before deactivating.` })
       return
     }
+    setDeactivateError(null)
+    await window.api.debtors.setCustomerActive(c.id, false)
     if (selectedCustomer?.id === c.id) setSelectedCustomer(null)
+    loadCustomers()
+  }
+
+  async function handleDeleteCustomer(c) {
+    if (!confirm(`Delete "${c.name}"? This cannot be undone.`)) return
+    await window.api.debtors.deleteCustomer(c.id)
+    if (selectedCustomer?.id === c.id) setSelectedCustomer(null)
+    loadCustomers()
+  }
+
+  async function handleReactivateCustomer(c) {
+    await window.api.debtors.setCustomerActive(c.id, true)
     loadCustomers()
   }
 
@@ -209,7 +232,11 @@ export default function Debtors() {
   }
 
   async function handleDeleteSale(row) {
-    if (!confirm('Delete this credit sale?')) return
+    const hasPayments = (row.amount_paid || 0) > 0
+    const msg = hasPayments
+      ? `Delete this credit sale and all its payments?\n\nThis will remove the revenue from ${row.month_year} and all recorded payments from their respective months.`
+      : 'Delete this credit sale?'
+    if (!confirm(msg)) return
     await window.api.debtors.deleteCreditSale(row.id)
     loadSales(selectedCustomer.id)
     loadCustomers()
@@ -217,7 +244,8 @@ export default function Debtors() {
 
   function openRecordPayment(sale) {
     setPaymentTargetSale(sale)
-    setPaymentForm({ ...EMPTY_PAYMENT_FORM })
+    const outstanding = (sale.amount_owed || 0) - (sale.amount_paid || 0)
+    setPaymentForm({ ...EMPTY_PAYMENT_FORM, amount: String(Math.max(0, outstanding)) })
     setShowPaymentModal(true)
   }
 
@@ -269,7 +297,7 @@ export default function Debtors() {
       render: (_, row) => (
         <div className={styles.rowActions} onClick={e => e.stopPropagation()}>
           <button className={styles.iconBtn} title="Edit" onClick={() => openEditCustomer(row)}>✎</button>
-          <button className={styles.iconBtn} title="Delete" onClick={() => handleDeleteCustomer(row)}>✕</button>
+          <button className={styles.iconBtn} title="Deactivate" onClick={() => handleDeactivateCustomer(row)}>⊘</button>
         </div>
       )
     },
@@ -298,9 +326,7 @@ export default function Debtors() {
           )}
           <Button size="sm" variant="secondary" onClick={() => openViewPayments(row)}>History</Button>
           <Button size="sm" variant="secondary" onClick={() => openEditSale(row)}>Edit</Button>
-          {(row.amount_paid === 0 || row.amount_paid === null) && (
-            <Button size="sm" variant="danger" onClick={() => handleDeleteSale(row)}>Del</Button>
-          )}
+          <Button size="sm" variant="danger" onClick={() => handleDeleteSale(row)}>Del</Button>
         </div>
       )
     },
@@ -341,28 +367,65 @@ export default function Debtors() {
         <div className={styles.leftPanel}>
           <div className={styles.panelHeader}>
             <span className={styles.panelTitle}>Credit Customers</span>
-            <Button size="sm" onClick={openAddCustomer}>+ Add Customer</Button>
+            <Button size="sm" onClick={openAddCustomer}>+ Add</Button>
           </div>
+
+          <div className={styles.customerTabs}>
+            {[
+              { key: 'owing',    label: 'Owing',    count: tabCustomers.owing.length },
+              { key: 'cleared',  label: 'Cleared',  count: tabCustomers.cleared.length },
+              { key: 'inactive', label: 'Inactive', count: tabCustomers.inactive.length },
+            ].map(t => (
+              <button
+                key={t.key}
+                className={`${styles.customerTab} ${customerTab === t.key ? styles.customerTabActive : ''}`}
+                onClick={() => { setCustomerTab(t.key); setDeactivateError(null); setSelectedCustomer(null) }}
+              >
+                {t.label}
+                {t.count > 0 && <span className={styles.customerTabBadge}>{t.count}</span>}
+              </button>
+            ))}
+          </div>
+
+          {deactivateError && (
+            <div className={styles.deactivateError}>
+              <span className={styles.deactivateErrorIcon}>⚠</span>
+              <span>{deactivateError.message}</span>
+              <button className={styles.deactivateErrorClose} onClick={() => setDeactivateError(null)}>✕</button>
+            </div>
+          )}
+
           <div className={styles.customerList}>
-            {customers.length === 0 && (
-              <div className={styles.emptyList}>No credit customers yet.</div>
+            {visibleCustomers.length === 0 && (
+              <div className={styles.emptyList}>
+                {customerTab === 'owing'    && 'No customers with outstanding debt.'}
+                {customerTab === 'cleared'  && 'No customers with fully cleared debt.'}
+                {customerTab === 'inactive' && 'No inactive customers.'}
+              </div>
             )}
-            {customers.map(c => (
+            {visibleCustomers.map(c => (
               <div
                 key={c.id}
-                className={`${styles.customerRow} ${selectedCustomer?.id === c.id ? styles.customerRowSelected : ''}`}
-                onClick={() => setSelectedCustomer(c)}
+                className={`${styles.customerRow} ${selectedCustomer?.id === c.id ? styles.customerRowSelected : ''} ${deactivateError?.customerId === c.id ? styles.customerRowError : ''}`}
+                onClick={() => { setSelectedCustomer(c); setDeactivateError(null) }}
               >
                 <div className={styles.customerInfo}>
                   <div className={styles.custName}>{c.name}</div>
                   {c.phone && <div className={styles.custPhone}>{c.phone}</div>}
                   <div className={styles.custMeta}>
-                    {customerStatusPill(c.outstanding || 0)}
+                    {customerTab !== 'inactive' && customerStatusPill(c.outstanding || 0)}
                   </div>
                 </div>
                 <div className={styles.rowActions} onClick={e => e.stopPropagation()}>
-                  <button className={styles.iconBtn} title="Edit" onClick={() => openEditCustomer(c)}>✎</button>
-                  <button className={styles.iconBtn} title="Delete" onClick={() => handleDeleteCustomer(c)}>✕</button>
+                  {customerTab !== 'inactive' && (
+                    <button className={styles.iconBtn} title="Edit" onClick={() => openEditCustomer(c)}>✎</button>
+                  )}
+                  {customerTab === 'inactive'
+                    ? <button className={`${styles.iconBtn} ${styles.iconBtnGreen}`} title="Reactivate" onClick={() => handleReactivateCustomer(c)}>↺</button>
+                    : (c.total_sales || 0) === 0
+                      ? <button className={`${styles.iconBtn} ${styles.iconBtnDanger}`} title="Delete" onClick={() => handleDeleteCustomer(c)}>🗑</button>
+                      : <button className={styles.iconBtn} title="Deactivate" onClick={() => handleDeactivateCustomer(c)}>⊘</button>
+                  }
                 </div>
               </div>
             ))}

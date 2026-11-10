@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import PageLoader from '../components/common/PageLoader'
 import { useMonth } from '../utils/MonthContext'
-import { formatDate, formatCurrency, formatEggs, toMonthYear } from '../utils/format'
+import { formatDate, formatCurrency, formatEggs, toMonthYear, OTHER_INCOME_CATEGORIES, PAYMENT_METHODS } from '../utils/format'
 import Table from '../components/common/Table'
 import Button from '../components/common/Button'
 import Modal from '../components/common/Modal'
@@ -30,6 +30,20 @@ const EMPTY_DOM_FORM = {
   flock_id: '',
 }
 
+const EMPTY_INCOME_FORM = {
+  date: dayjs().format('YYYY-MM-DD'),
+  category: OTHER_INCOME_CATEGORIES[0],
+  description: '',
+  amount: '',
+  payment_method: 'Cash',
+}
+
+function loadIncomeCategories() {
+  try { const s = localStorage.getItem('incomeCustomCategories'); if (s) return JSON.parse(s) } catch {}
+  return []
+}
+function saveIncomeCategories(cats) { localStorage.setItem('incomeCustomCategories', JSON.stringify(cats)) }
+
 export default function Sales() {
   const { monthYear } = useMonth()
   const [sales, setSales] = useState([])
@@ -49,25 +63,38 @@ export default function Sales() {
   const [newCustomerName, setNewCustomerName] = useState('')
   const [newCustomerPhone, setNewCustomerPhone] = useState('')
 
+  const [otherIncomeList, setOtherIncomeList] = useState([])
+  const [showIncomeModal, setShowIncomeModal] = useState(false)
+  const [editIncome, setEditIncome] = useState(null)
+  const [incomeForm, setIncomeForm] = useState(EMPTY_INCOME_FORM)
+  const [incomeCustomCats, setIncomeCustomCats] = useState(loadIncomeCategories)
+  const [newIncomeCat, setNewIncomeCat] = useState('')
+  const [addingIncomeCat, setAddingIncomeCat] = useState(false)
+
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [s, d, sm, p, f, c] = await Promise.all([
-      window.api.sales.getAll(monthYear),
-      window.api.domestic.getAll(monthYear),
-      window.api.sales.getSummary(monthYear),
-      window.api.settings.getPrices(),
-      window.api.flocks.getAll(),
-      window.api.debtors.getCustomers(),
-    ])
-    setSales(s)
-    setDomestic(d)
-    setSummary(sm)
-    setPrices(p)
-    setFlocks(f)
-    setCustomers(c)
-    setLoading(false)
+    try {
+      const [s, d, sm, p, f, c, oi] = await Promise.all([
+        window.api.sales.getAll(monthYear),
+        window.api.domestic.getAll(monthYear),
+        window.api.sales.getSummary(monthYear),
+        window.api.settings.getPrices(),
+        window.api.flocks.getAll(),
+        window.api.debtors.getCustomers(),
+        window.api.otherIncome.getAll(monthYear),
+      ])
+      setSales(s)
+      setDomestic(d)
+      setSummary(sm)
+      setPrices(p)
+      setFlocks(f)
+      setCustomers(c)
+      setOtherIncomeList(oi)
+    } finally {
+      setLoading(false)
+    }
   }, [monthYear])
 
   useEffect(() => { load() }, [load])
@@ -186,11 +213,55 @@ export default function Sales() {
     load()
   }
 
+  function openAddIncome() {
+    setEditIncome(null)
+    setIncomeForm(EMPTY_INCOME_FORM)
+    setShowIncomeModal(true)
+  }
+
+  function openEditIncome(row) {
+    setEditIncome(row)
+    setIncomeForm({
+      date: row.date,
+      category: row.category,
+      description: row.description || '',
+      amount: String(row.amount ?? ''),
+      payment_method: row.payment_method || 'Cash',
+    })
+    setShowIncomeModal(true)
+  }
+
+  async function handleDeleteIncome(id) {
+    if (!confirm('Delete this income record?')) return
+    await window.api.otherIncome.delete(id)
+    load()
+  }
+
+  async function handleIncomeSubmit(e) {
+    e.preventDefault()
+    const data = {
+      date: incomeForm.date,
+      month_year: toMonthYear(incomeForm.date),
+      category: incomeForm.category,
+      description: incomeForm.description || null,
+      amount: Number(incomeForm.amount),
+      payment_method: incomeForm.payment_method,
+    }
+    if (editIncome) {
+      await window.api.otherIncome.update(editIncome.id, data)
+    } else {
+      await window.api.otherIncome.add(data)
+    }
+    setShowIncomeModal(false)
+    load()
+  }
+
   const grossRevenue = summary?.totals?.gross_revenue || 0
   const totalCrates = summary?.totals?.total_crates || 0
   const totalPieces = summary?.totals?.total_pieces || 0
   const totalDomEggs = domestic.reduce((s, d) => s + (d.crates * 30 + d.pieces), 0)
   const creditSalesCount = sales.filter(s => s.payment_status === 'credit' && s.credit_status !== 'paid').length
+  const totalOtherIncome = otherIncomeList.reduce((s, r) => s + (r.amount || 0), 0)
 
   const debtors = customers.filter(c => c.outstanding > 0)
   const totalOutstanding = debtors.reduce((sum, c) => sum + c.outstanding, 0)
@@ -233,15 +304,6 @@ export default function Sales() {
       render: v => <span className={styles.sizeBadge}>{v}</span>
     },
     { key: 'price_per_crate', label: 'Price/Crate', align: 'right', width: 130, render: v => formatCurrency(v) },
-    {
-      key: 'flock_name', label: 'Flock', width: 160,
-      render: (v, row) => (
-        <span className={styles.flockBadge}
-          style={{ background: (row.flock_color || '#2563eb') + '22', color: row.flock_color || '#2563eb', borderColor: (row.flock_color || '#2563eb') + '55' }}>
-          {v || '—'}
-        </span>
-      )
-    },
     { key: 'crates', label: 'Crates', align: 'right', width: 90 },
     { key: 'pieces', label: 'Pieces', align: 'right', width: 90 },
     {
@@ -280,15 +342,6 @@ export default function Sales() {
   const domColumns = [
     { key: 'date', label: 'Date', render: v => formatDate(v) },
     { key: 'location', label: 'Location / Purpose', render: v => v || <span style={{ color: '#9ca3af' }}>—</span> },
-    {
-      key: 'flock_name', label: 'Flock',
-      render: (v, row) => (
-        <span className={styles.flockBadge}
-          style={{ background: (row.flock_color || '#2563eb') + '22', color: row.flock_color || '#2563eb', borderColor: (row.flock_color || '#2563eb') + '55' }}>
-          {v || '—'}
-        </span>
-      )
-    },
     { key: 'crates', label: 'Crates', align: 'right' },
     { key: 'pieces', label: 'Pieces', align: 'right' },
     {
@@ -345,6 +398,12 @@ export default function Sales() {
             <div className={styles.kpiItemLabel}>{s.egg_size} Eggs</div>
           </div>
         ))}
+        {totalOtherIncome > 0 && (
+          <div className={styles.kpiItem}>
+            <div className={styles.kpiItemValue} style={{ color: '#7c3aed' }}>{formatCurrency(totalOtherIncome)}</div>
+            <div className={styles.kpiItemLabel}>Other Income</div>
+          </div>
+        )}
       </div>
 
       {/* Outstanding Debts Panel */}
@@ -399,6 +458,14 @@ export default function Sales() {
           <span className={styles.tabIcon}>🏠</span>
           Domestic Usage & Gifting
           {domestic.length > 0 && <span className={styles.tabCount}>{domestic.length}</span>}
+        </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'otherIncome' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('otherIncome')}
+        >
+          <span className={styles.tabIcon}>💼</span>
+          Other Income
+          {otherIncomeList.length > 0 && <span className={styles.tabCount}>{otherIncomeList.length}</span>}
         </button>
       </div>
 
@@ -475,6 +542,43 @@ export default function Sales() {
               <span className={styles.recordCount}>{domestic.length} record{domestic.length !== 1 ? 's' : ''} this month</span>
             </div>
             <Table columns={domColumns} data={domestic} emptyMessage="No domestic usage recorded." />
+          </>
+        )}
+
+        {activeTab === 'otherIncome' && (
+          <>
+            <div className={styles.toolbar}>
+              <Button onClick={openAddIncome}>+ Add Income</Button>
+              <span className={styles.recordCount}>{otherIncomeList.length} record{otherIncomeList.length !== 1 ? 's' : ''} this month</span>
+            </div>
+            <Table
+              columns={[
+                { key: 'date', label: 'Date', width: 130, render: v => formatDate(v) },
+                {
+                  key: 'category', label: 'Category',
+                  render: v => (
+                    <span style={{ display: 'inline-block', background: '#ede9fe', color: '#6d28d9', borderRadius: 100, padding: '2px 10px', fontSize: 12, fontWeight: 600 }}>{v}</span>
+                  )
+                },
+                { key: 'description', label: 'Description', render: v => v || <span style={{ color: '#9ca3af' }}>—</span> },
+                {
+                  key: 'payment_method', label: 'Payment',
+                  render: v => <span style={{ display: 'inline-block', background: '#f1f5f9', color: '#475569', borderRadius: 100, padding: '2px 10px', fontSize: 12, fontWeight: 600 }}>{v}</span>
+                },
+                { key: 'amount', label: 'Amount', align: 'right', render: v => <span style={{ fontWeight: 700, color: '#7c3aed' }}>{formatCurrency(v)}</span> },
+                {
+                  key: 'actions', label: '', align: 'right', width: 110,
+                  render: (_, row) => (
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <Button size="sm" variant="secondary" onClick={() => openEditIncome(row)}>Edit</Button>
+                      <Button size="sm" variant="danger" onClick={() => handleDeleteIncome(row.id)}>Del</Button>
+                    </div>
+                  )
+                },
+              ]}
+              data={otherIncomeList}
+              emptyMessage="No other income recorded for this month."
+            />
           </>
         )}
       </div>
@@ -637,6 +741,109 @@ export default function Sales() {
               <FormField label="Phone (optional)">
                 <Input type="text" placeholder="Phone number" value={newCustomerPhone}
                   onChange={e => setNewCustomerPhone(e.target.value)} />
+              </FormField>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Other Income Modal */}
+      {showIncomeModal && (
+        <Modal
+          title={editIncome ? 'Edit Income' : 'Add Other Income'}
+          onClose={() => setShowIncomeModal(false)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setShowIncomeModal(false)}>Cancel</Button>
+              <Button onClick={handleIncomeSubmit}>Save</Button>
+            </>
+          }
+        >
+          <form onSubmit={handleIncomeSubmit} className={styles.form}>
+            <div className={styles.formGrid}>
+              <FormField label="Date">
+                <Input type="date" value={incomeForm.date}
+                  onChange={e => setIncomeForm(f => ({ ...f, date: e.target.value }))} required />
+              </FormField>
+              <FormField label={
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Category</span>
+                  <button
+                    type="button"
+                    onClick={() => { setNewIncomeCat(''); setAddingIncomeCat(true) }}
+                    style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: '#2563eb', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontFamily: 'var(--font)' }}
+                  >+ Add Category</button>
+                </div>
+              }>
+                <Select value={incomeForm.category}
+                  onChange={e => setIncomeForm(f => ({ ...f, category: e.target.value }))}>
+                  <optgroup label="Built-in">
+                    {OTHER_INCOME_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </optgroup>
+                  {incomeCustomCats.length > 0 && (
+                    <optgroup label="Custom">
+                      {incomeCustomCats.map(c => <option key={c} value={c}>{c}</option>)}
+                    </optgroup>
+                  )}
+                </Select>
+                {addingIncomeCat && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="New category name"
+                      value={newIncomeCat}
+                      onChange={e => setNewIncomeCat(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          const trimmed = newIncomeCat.trim()
+                          if (trimmed && !OTHER_INCOME_CATEGORIES.includes(trimmed) && !incomeCustomCats.includes(trimmed)) {
+                            const updated = [...incomeCustomCats, trimmed]
+                            setIncomeCustomCats(updated)
+                            saveIncomeCategories(updated)
+                            setIncomeForm(f => ({ ...f, category: trimmed }))
+                          }
+                          setAddingIncomeCat(false); setNewIncomeCat('')
+                        }
+                        if (e.key === 'Escape') { setAddingIncomeCat(false); setNewIncomeCat('') }
+                      }}
+                      style={{ flex: 1, border: '1.5px solid var(--color-primary)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', fontSize: 15, outline: 'none', fontFamily: 'var(--font)' }}
+                    />
+                    <button type="button"
+                      onClick={() => {
+                        const trimmed = newIncomeCat.trim()
+                        if (trimmed && !OTHER_INCOME_CATEGORIES.includes(trimmed) && !incomeCustomCats.includes(trimmed)) {
+                          const updated = [...incomeCustomCats, trimmed]
+                          setIncomeCustomCats(updated)
+                          saveIncomeCategories(updated)
+                          setIncomeForm(f => ({ ...f, category: trimmed }))
+                        }
+                        setAddingIncomeCat(false); setNewIncomeCat('')
+                      }}
+                      style={{ height: 48, padding: '0 16px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' }}
+                    >Add</button>
+                    <button type="button"
+                      onClick={() => { setAddingIncomeCat(false); setNewIncomeCat('') }}
+                      style={{ height: 48, padding: '0 14px', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font)' }}
+                    >✕</button>
+                  </div>
+                )}
+              </FormField>
+              <FormField label="Description">
+                <Input type="text" placeholder="e.g. Loan from First Bank, sold old cages"
+                  value={incomeForm.description}
+                  onChange={e => setIncomeForm(f => ({ ...f, description: e.target.value }))} />
+              </FormField>
+              <FormField label="Payment Method">
+                <Select value={incomeForm.payment_method}
+                  onChange={e => setIncomeForm(f => ({ ...f, payment_method: e.target.value }))}>
+                  {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                </Select>
+              </FormField>
+              <FormField label="Amount (₦)">
+                <Input type="number" min="0" step="0.01" value={incomeForm.amount}
+                  onChange={e => setIncomeForm(f => ({ ...f, amount: e.target.value }))} required />
               </FormField>
             </div>
           </form>

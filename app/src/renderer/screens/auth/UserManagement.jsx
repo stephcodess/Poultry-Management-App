@@ -6,6 +6,70 @@ import PageLoader from '../../components/common/PageLoader'
 const APP_ACCESS_LABELS = { owner: 'Owner', admin: 'Admin', editor: 'Editor', viewer: 'Viewer', none: 'No Access' }
 const APP_ACCESS_ORDER = { owner: 4, admin: 3, editor: 2, viewer: 1, none: 0 }
 
+const DEFAULT_POSITIONS = ['Farm Hand', 'Driver', 'Security', 'Accountant', 'Supervisor', 'Cleaner', 'Veterinarian', 'Other']
+function loadPositions() { try { return JSON.parse(localStorage.getItem('staff_positions') || '[]') } catch { return [] } }
+function savePositions(list) { localStorage.setItem('staff_positions', JSON.stringify(list)) }
+
+function PositionField({ value, onChange }) {
+  const [customPositions, setCustomPositions] = useState(loadPositions)
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  function confirmAdd() {
+    const val = draft.trim()
+    if (val && ![...DEFAULT_POSITIONS, ...customPositions].includes(val)) {
+      const updated = [...customPositions, val]
+      setCustomPositions(updated)
+      savePositions(updated)
+      onChange(val)
+    }
+    setAdding(false)
+    setDraft('')
+  }
+
+  return (
+    <div className={styles.field}>
+      <div className={styles.labelRow}>
+        <label className={styles.label}>Position / Role</label>
+        {!adding && (
+          <button type="button" className={styles.addPositionBtn} onClick={() => { setAdding(true); setDraft('') }}>
+            + Add Position
+          </button>
+        )}
+      </div>
+      {adding ? (
+        <div className={styles.inlineAddRow}>
+          <input
+            autoFocus
+            className={styles.input}
+            value={draft}
+            placeholder="e.g. Nurse, Mechanic"
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); confirmAdd() }
+              if (e.key === 'Escape') { setAdding(false); setDraft('') }
+            }}
+          />
+          <button type="button" className={styles.inlineAddConfirm} onClick={confirmAdd}>Add</button>
+          <button type="button" className={styles.inlineAddCancel} onClick={() => { setAdding(false); setDraft('') }}>✕</button>
+        </div>
+      ) : (
+        <select className={styles.input} value={value} onChange={e => onChange(e.target.value)}>
+          <option value="">— Select position —</option>
+          <optgroup label="Common">
+            {DEFAULT_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+          </optgroup>
+          {customPositions.length > 0 && (
+            <optgroup label="Custom">
+              {customPositions.map(p => <option key={p} value={p}>{p}</option>)}
+            </optgroup>
+          )}
+        </select>
+      )}
+    </div>
+  )
+}
+
 function AccessBadge({ role }) {
   const cls = role === 'none' ? styles.badge_none : styles['badge_' + role]
   return <span className={`${styles.badge} ${cls}`}>{APP_ACCESS_LABELS[role] || role}</span>
@@ -203,10 +267,7 @@ function AddModal({ assignableRoles, onSubmit, onClose }) {
             <label className={styles.label}>Full Name *</label>
             <input className={styles.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Emeka Okafor" required autoFocus />
           </div>
-          <div className={styles.field}>
-            <label className={styles.label}>Position / Role</label>
-            <input className={styles.input} value={position} onChange={e => setPosition(e.target.value)} placeholder="e.g. Farm Hand, Driver, Accountant" />
-          </div>
+          <PositionField value={position} onChange={setPosition} />
           <div className={styles.field}>
             <label className={styles.label}>Phone</label>
             <input className={styles.input} value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 08012345678" />
@@ -284,10 +345,7 @@ function EditModal({ user, assignableRoles, session, onSubmit, onClose }) {
             <label className={styles.label}>Full Name</label>
             <input className={styles.input} value={name} onChange={e => setName(e.target.value)} required />
           </div>
-          <div className={styles.field}>
-            <label className={styles.label}>Position / Role</label>
-            <input className={styles.input} value={position} onChange={e => setPosition(e.target.value)} placeholder="e.g. Farm Hand, Driver" />
-          </div>
+          <PositionField value={position} onChange={setPosition} />
           <div className={styles.field}>
             <label className={styles.label}>Phone</label>
             <input className={styles.input} value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 08012345678" />

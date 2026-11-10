@@ -174,12 +174,22 @@ contextBridge.exposeInMainWorld('api', {
     },
   },
 
+  // Other Income (loans, livestock sales, director loans, etc.)
+  otherIncome: {
+    getAll: (monthYear) => invoke('otherIncome:getAll', monthYear),
+    add: (record) => invoke('otherIncome:add', record, _session),
+    update: (id, record) => invoke('otherIncome:update', id, record, _session),
+    delete: (id) => invoke('otherIncome:delete', id, _session),
+    getSummary: (monthYear) => invoke('otherIncome:getSummary', monthYear),
+  },
+
   // Debtors (credit customers + credit sales + payments)
   debtors: {
-    getCustomers: () => invoke('debtors:getCustomers'),
+    getCustomers: (opts) => invoke('debtors:getCustomers', opts),
     addCustomer: (record) => invoke('debtors:addCustomer', record, _session),
     updateCustomer: (id, record) => invoke('debtors:updateCustomer', id, record, _session),
     deleteCustomer: (id) => invoke('debtors:deleteCustomer', id, _session),
+    setCustomerActive: (id, isActive) => invoke('debtors:setCustomerActive', id, isActive, _session),
     getCreditSales: (filters) => invoke('debtors:getCreditSales', filters),
     addCreditSale: (record) => invoke('debtors:addCreditSale', record, _session),
     updateCreditSale: (id, record) => invoke('debtors:updateCreditSale', id, record, _session),

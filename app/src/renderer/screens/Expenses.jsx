@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import PageLoader from '../components/common/PageLoader'
+import { useAuth } from '../utils/AuthContext'
 import { useMonth } from '../utils/MonthContext'
 import { formatDate, formatCurrency, PAYMENT_METHODS, EXPENSE_CATEGORIES, STAFF_EXPENSE_CATEGORIES, toMonthYear } from '../utils/format'
 import Table from '../components/common/Table'
@@ -42,11 +43,15 @@ const PIE_COLORS = [
 
 export default function Expenses() {
   const { monthYear } = useMonth()
+  const { can } = useAuth()
   const [records, setRecords] = useState([])
   const [summary, setSummary] = useState(null)
   const [balance, setBalance] = useState(null)
   const [salesSummary, setSalesSummary] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [showBalanceModal, setShowBalanceModal] = useState(false)
+  const [balanceDraft, setBalanceDraft] = useState('')
+  const [balanceNotesDraft, setBalanceNotesDraft] = useState('')
   const [editRecord, setEditRecord] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [feedTypes, setFeedTypes] = useState(loadFeedTypes)
@@ -66,6 +71,7 @@ export default function Expenses() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    try {
     await window.api.balance.autoLoad(monthYear)
     const [r, s, b, ss, cfg, sl] = await Promise.all([
       window.api.expenses.getAll(monthYear),
@@ -81,7 +87,9 @@ export default function Expenses() {
     setSalesSummary(ss)
     if (cfg.feed_bag_kg) setBagKg(Number(cfg.feed_bag_kg))
     setStaffList(Array.isArray(sl) ? sl : [])
-    setLoading(false)
+    } finally {
+      setLoading(false)
+    }
   }, [monthYear])
 
   useEffect(() => { load() }, [load])
@@ -134,6 +142,22 @@ export default function Expenses() {
       await window.api.expenses.add(data)
     }
     setShowModal(false)
+    load()
+  }
+
+  function openBalanceModal() {
+    setBalanceDraft(String(balance?.opening_balance ?? 0))
+    setBalanceNotesDraft(balance?.notes || '')
+    setShowBalanceModal(true)
+  }
+
+  async function handleSaveBalance() {
+    await window.api.balance.upsert({
+      month_year: monthYear,
+      opening_balance: Number(balanceDraft) || 0,
+      notes: balanceNotesDraft || '',
+    })
+    setShowBalanceModal(false)
     load()
   }
 
@@ -231,7 +255,12 @@ export default function Expenses() {
           </div>
           <div className={styles.walletRight}>
             <div className={styles.walletStat}>
-              <span className={styles.walletStatLabel}>Opening Balance</span>
+              <span className={styles.walletStatLabel}>
+                Opening Balance
+                {can('manage_users') && (
+                  <button className={styles.editBalanceBtn} onClick={openBalanceModal} title="Edit opening balance">✎</button>
+                )}
+              </span>
               <span className={styles.walletStatValue}>{formatCurrency(openingBalance)}</span>
             </div>
             <div className={styles.walletStat}>
@@ -303,7 +332,6 @@ export default function Expenses() {
       {/* Toolbar */}
       <div className={styles.toolbar}>
         <Button onClick={openAdd}>+ Add Expense</Button>
-        <Button variant="secondary" onClick={() => { setNewCatName(''); setShowCatModal(true) }}>Manage Categories</Button>
         <span className={styles.recordCount}>{records.length} record{records.length !== 1 ? 's' : ''} this month</span>
       </div>
 
@@ -328,7 +356,16 @@ export default function Expenses() {
                 <Input type="date" value={form.date}
                   onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required />
               </FormField>
-              <FormField label="Category">
+              <FormField label={
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Category</span>
+                  <button
+                    type="button"
+                    onClick={() => { setNewCatName(''); setShowCatModal(true) }}
+                    style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: '#2563eb', border: 'none', borderRadius: 6, padding: '8px 10px', cursor: 'pointer', fontFamily: 'var(--font)' }}
+                  >+ Add Category</button>
+                </div>
+              }>
                 <Select value={form.category}
                   onChange={e => setForm(f => ({ ...f, category: e.target.value, staff_id: '' }))}>
                   <optgroup label="General">
@@ -566,6 +603,44 @@ export default function Expenses() {
                 style={{ padding: '0 18px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font)' }}
               >Add</button>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Opening Balance modal */}
+      {showBalanceModal && (
+        <Modal
+          title={`Opening Balance — ${monthYear}`}
+          onClose={() => setShowBalanceModal(false)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setShowBalanceModal(false)}>Cancel</Button>
+              <Button onClick={handleSaveBalance}>Save</Button>
+            </>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ margin: 0, fontSize: 15, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+              The opening cash balance carried into this month. Affects the wallet balance calculation.
+            </p>
+            <FormField label="Opening Balance (₦)">
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={balanceDraft}
+                onChange={e => setBalanceDraft(e.target.value)}
+                autoFocus
+              />
+            </FormField>
+            <FormField label="Notes (optional)">
+              <Input
+                type="text"
+                placeholder="e.g. Rolled over from previous month"
+                value={balanceNotesDraft}
+                onChange={e => setBalanceNotesDraft(e.target.value)}
+              />
+            </FormField>
           </div>
         </Modal>
       )}

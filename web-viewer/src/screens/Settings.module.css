@@ -1,0 +1,69 @@
+.page { display: flex; flex-direction: column; gap: 24px; padding: 20px; }
+
+/* Section shell */
+.section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
+
+.sectionHead { display: flex; align-items: center; gap: 14px; padding: 18px 22px 16px; border-bottom: 1px solid var(--color-border); }
+.sectionIcon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.sectionHeadText { flex: 1; min-width: 0; }
+.sectionTitle { font-size: 16px; font-weight: 700; color: var(--color-text); margin-bottom: 2px; }
+.sectionDesc { font-size: 13px; color: var(--color-text-secondary); line-height: 1.4; }
+
+.sectionBody { padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; }
+
+/* Farm info grid */
+.farmGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.saveRow { display: flex; align-items: center; gap: 12px; }
+.savedMsg { font-size: 14px; color: #16a34a; font-weight: 600; }
+
+/* Flock cards */
+.flockList { display: flex; flex-direction: column; gap: 10px; }
+
+.flockCard { border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+
+.flockCardTop { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--color-surface); }
+.flockColorDot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.flockCardName { flex: 1; font-weight: 600; font-size: 15px; color: var(--color-text); }
+.flockStatusBadge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+.flockStatusBadge.active { background: #dcfce7; color: #16a34a; }
+.flockStatusBadge.inactive { background: #f1f5f9; color: #94a3b8; }
+.retireSoonBadge { font-size: 11px; font-weight: 700; color: #d97706; background: #fef3c7; border-radius: 20px; padding: 2px 8px; }
+
+.flockCardBody { padding: 14px 16px; background: #fafbfd; border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 12px; }
+.flockRow1 { display: grid; grid-template-columns: 1fr 140px 44px auto; gap: 10px; align-items: flex-end; }
+.flockRow2 { display: grid; grid-template-columns: 1fr 1fr 1fr 100px 100px; gap: 10px; align-items: flex-end; }
+
+.fieldLabel { font-size: 11px; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.colorPicker { width: 38px; height: 36px; border: 1.5px solid var(--color-border); border-radius: var(--radius-sm); padding: 2px; cursor: pointer; background: none; }
+.toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; padding-bottom: 6px; white-space: nowrap; }
+
+.flockCardFooter { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--color-border); }
+
+/* Add flock panel */
+.addPanel { border: 1.5px dashed var(--color-border); border-radius: var(--radius-md); padding: 14px 16px; background: var(--color-bg); display: grid; grid-template-columns: 1fr 160px 44px auto; gap: 10px; align-items: flex-end; }
+
+/* Egg prices */
+.priceTable { border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.priceTableHead { display: grid; grid-template-columns: 1fr 1fr 130px; gap: 0; background: var(--color-bg); padding: 8px 14px; font-size: 11px; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+.priceRow { display: grid; grid-template-columns: 1fr 1fr 130px; gap: 10px; padding: 8px 14px; align-items: center; border-top: 1px solid var(--color-border); }
+.priceRow:hover { background: var(--color-bg); }
+.priceActions { display: flex; gap: 6px; justify-content: flex-end; }
+.addPriceRow { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: flex-end; padding: 12px 14px; background: var(--color-bg); border-top: 1px solid var(--color-border); }
+
+@media (max-width: 767px) {
+  .page { padding: 12px; gap: 16px; }
+  .farmGrid { grid-template-columns: 1fr; }
+  .flockRow1 { grid-template-columns: 1fr 1fr; }
+  .flockRow2 { grid-template-columns: 1fr 1fr; }
+  .addPanel { grid-template-columns: 1fr 1fr; }
+  .priceTableHead { grid-template-columns: 1fr 1fr; }
+  .priceRow { grid-template-columns: 1fr 1fr; }
+  .priceTableHead span:last-child { display: none; }
+  .addPriceRow { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .page { padding: 8px; }
+  .flockRow1 { grid-template-columns: 1fr; }
+  .flockRow2 { grid-template-columns: 1fr; }
+  .addPanel { grid-template-columns: 1fr; }
+}

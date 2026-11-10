@@ -8,7 +8,7 @@ const NAV_ITEMS = [
   { to: '/dashboard',  label: 'Dashboard',      icon: '▦',  tour: 'nav-dashboard'  },
   { divider: true, label: 'FARM RECORDS' },
   { to: '/production', label: 'Production',      icon: '🥚', tour: 'nav-production' },
-  { to: '/sales',      label: 'Sales',           icon: '🛒', tour: 'nav-sales'      },
+  { to: '/sales',      label: 'Income',          icon: '🛒', tour: 'nav-sales'      },
   { to: '/debtors',    label: 'Debtors',         icon: '📒', tour: 'nav-debtors'    },
   { to: '/expenses',   label: 'Expenses',        icon: '💸', tour: 'nav-expenses'   },
   { divider: true, label: 'FLOCK HEALTH' },

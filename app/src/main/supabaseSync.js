@@ -18,6 +18,7 @@ const TABLES = [
   { name: 'settings',         conflictKey: 'key',                exclude: [], remoteTable: 'app_settings' },
   { name: 'debt_payments',    conflictKey: 'id',                 exclude: [] },
   { name: 'water_log',        conflictKey: 'id',                 exclude: [] },
+  { name: 'other_income',     conflictKey: 'id',                 exclude: [] },
 ]
 
 const EXCLUDE_MAP      = Object.fromEntries(TABLES.map(t => [t.name, t.exclude]))
@@ -79,7 +80,7 @@ async function pullFromSupabase(db, supabaseUrl, supabaseKey) {
   const counts = {}
   const failedTables = []
 
-  for (const { name, conflictKey, remoteTable } of TABLES) {
+  for (const { name, conflictKey, exclude, remoteTable } of TABLES) {
     const target = remoteTable || name
     try {
       const res = await fetch(`${supabaseUrl}/rest/v1/${target}?select=*`, { headers })
@@ -87,8 +88,9 @@ async function pullFromSupabase(db, supabaseUrl, supabaseKey) {
         const text = await res.text().catch(() => res.statusText)
         throw new Error(`HTTP ${res.status}: ${text}`)
       }
-      const rows = await res.json()
-      if (!Array.isArray(rows) || rows.length === 0) { counts[name] = 0; continue }
+      const rawRows = await res.json()
+      if (!Array.isArray(rawRows) || rawRows.length === 0) { counts[name] = 0; continue }
+      const rows = stripColumns(rawRows, exclude)
 
       const cols = Object.keys(rows[0])
       const placeholders = cols.map(() => '?').join(', ')

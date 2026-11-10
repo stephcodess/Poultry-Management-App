@@ -47,3 +47,20 @@ export const EXPENSE_CATEGORIES = [
   'Equipment', 'Transport', 'Maintenance', 'Miscellaneous',
   ...STAFF_EXPENSE_CATEGORIES,
 ]
+
+export const OTHER_INCOME_CATEGORIES = [
+  'Loan Received', 'Director Loan', 'Livestock Sale', 'Asset Sale',
+  'Capital Injection', 'Grant / Subsidy', 'Refund', 'Other',
+]
+
+export const HEALTH_TYPES = ['Vaccination', 'Medication', 'Deworming', 'Vitamin', 'Vet Visit', 'Other']
+
+export const MORTALITY_REASONS = [
+  'Disease', 'Injury', 'Heat Stress', 'Unknown',
+  'Sale', 'Domestic', 'Gift', 'Cull', 'Transfer', 'Other',
+]
+
+export const REASON_ICONS = {
+  Disease: '🦠', Injury: '🩹', 'Heat Stress': '🌡', Unknown: '❓',
+  Sale: '💰', Domestic: '🍗', Gift: '🎁', Cull: '✂', Transfer: '🔄', Other: '📝',
+}

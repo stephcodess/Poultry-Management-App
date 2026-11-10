@@ -1,0 +1,90 @@
+.page { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
+
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.statCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statLabel { font-size: 11px; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+.statValue { font-size: 20px; font-weight: 700; color: var(--color-text); }
+.statSub { font-size: 12px; color: var(--color-text-secondary); }
+
+/* Alerts */
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid;
+}
+.alertAmber { background: #fffbeb; border-color: #fde68a; }
+.alertRed   { background: #fff1f2; border-color: #fecaca; }
+.alertIcon  { font-size: 18px; flex-shrink: 0; }
+.alertText  { flex: 1; font-size: 13.5px; color: #92400e; }
+.alertRed .alertText { color: #991b1b; }
+.alertDismiss { background: none; border: none; cursor: pointer; color: #d97706; font-size: 14px; padding: 0; }
+
+/* Toolbar */
+.toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.recordCount { font-size: 14px; color: var(--color-text-secondary); }
+
+/* Cards */
+.tableWrapper { display: flex; flex-direction: column; gap: 8px; }
+.empty { padding: 40px 24px; text-align: center; color: var(--color-text-secondary); font-size: 14px; }
+
+.recordCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recordCardTop { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.recordCardLeft { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.recordCardRight { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.recordDetails { font-size: 13px; color: var(--color-text-secondary); }
+
+.flockBadge { display: inline-block; border: 1px solid; border-radius: 100px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+.eggCount { font-size: 15px; font-weight: 700; color: var(--color-text); }
+
+/* Form */
+.form { display: flex; flex-direction: column; gap: 16px; }
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.preview {
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 767px) {
+  .page { padding: 12px; }
+  .statsRow { grid-template-columns: 1fr 1fr; }
+  .formGrid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .page { padding: 8px; }
+  .statsRow { grid-template-columns: 1fr; }
+  .recordCardTop { flex-direction: column; align-items: flex-start; }
+  .recordCardRight { justify-content: flex-start; }
+}

@@ -32,7 +32,7 @@
 }
 
 @media (max-width: 767px) {
-  :root { --sidebar-width: 240px; }
+  :root { --sidebar-width: 200px; }
 }
 
 html, body, #root {

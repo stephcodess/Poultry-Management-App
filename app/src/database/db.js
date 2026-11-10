@@ -335,6 +335,23 @@ function runMigrations() {
     );
   `)
 
+  // ── OTHER INCOME ─────────────────────────────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS other_income (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      date           TEXT    NOT NULL,
+      month_year     TEXT    NOT NULL,
+      category       TEXT    NOT NULL DEFAULT 'Other',
+      description    TEXT,
+      amount         REAL    NOT NULL DEFAULT 0,
+      payment_method TEXT    NOT NULL DEFAULT 'Cash',
+      created_at     TEXT    DEFAULT (datetime('now')),
+      updated_at     TEXT    DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_other_income_month ON other_income(month_year);
+  `)
+
   // ── OFFLINE SYNC QUEUE ──────────────────────────────────────────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS offline_queue (
@@ -369,6 +386,9 @@ function runMigrations() {
   try { db.exec('ALTER TABLE expenses ADD COLUMN quantity_kg REAL') } catch {}
   try { db.exec('ALTER TABLE expenses ADD COLUMN bags REAL') } catch {}
   try { db.exec('ALTER TABLE expenses ADD COLUMN staff_id INTEGER REFERENCES users(id) ON DELETE SET NULL') } catch {}
+
+  // credit_customers: soft-delete flag
+  try { db.exec('ALTER TABLE credit_customers ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1') } catch {}
 
   // sales: credit + payment fields
   try { db.exec("ALTER TABLE sales ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'cash'") } catch {}

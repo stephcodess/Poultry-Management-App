@@ -249,6 +249,7 @@
 .formInner {
   width: 100%;
   max-width: 400px;
+  min-width: 0;
   margin: 0 auto;
 }
 
@@ -373,6 +374,12 @@
 }
 
 @media (max-width: 480px) {
-  .formSide { padding: 32px 20px; }
+  .formSide { padding: 28px 16px; }
   .formTitle { font-size: 22px; }
+  .formSubtitle { font-size: 13px; margin-bottom: 24px; }
+}
+
+@media (max-width: 360px) {
+  .formSide { padding: 20px 12px; }
+  .formTitle { font-size: 20px; }
 }
