@@ -16,14 +16,14 @@ const TITLES = {
   '/health': 'Health Records',
   '/mortality': 'Flock Movement',
   '/settings': 'Settings',
-  '/staff': 'Staff Management',
+  '/staff': 'Staff & Access',
   '/reports': 'Control Record',
 }
 
 export default function Header({ onMenuToggle }) {
   const { pathname } = useLocation()
   const { monthYear, setMonthYear } = useMonth()
-  const [online, setOnline] = useState(true)
+  const [online, setOnline] = useState(null)
   const title = TITLES[pathname] || 'Eldesign Poultry'
 
   useEffect(() => {
@@ -41,17 +41,30 @@ export default function Header({ onMenuToggle }) {
 
   return (
     <header className={styles.header}>
-      <button className={styles.hamburger} onClick={onMenuToggle} aria-label="Open menu">☰</button>
-      <div className={styles.title}>{title}</div>
+      <div className={styles.left}>
+        <button className={styles.hamburger} onClick={onMenuToggle} aria-label="Open menu">☰</button>
+        <div className={styles.title}>{title}</div>
+      </div>
+
       <div className={styles.center}>
         <button className={styles.monthBtn} onClick={prevMonth}>‹</button>
-        <span className={styles.monthLabel}>{formatMonthYear(monthYear)}</span>
+        <input
+          type="month"
+          className={styles.monthInput}
+          value={monthYear}
+          max={dayjs().format('YYYY-MM')}
+          onChange={e => e.target.value && setMonthYear(e.target.value)}
+        />
         <button className={styles.monthBtn} onClick={nextMonth}>›</button>
       </div>
+
       <div className={styles.right}>
-        <span className={`${styles.badge} ${online ? styles.online : styles.offline}`}>
-          {online ? '🟢 Synced' : '🔴 Offline'}
-        </span>
+        {online !== null && (
+          <span className={`${styles.syncBadge} ${online ? styles.syncBadgeOk : styles.syncBadgeErr}`}>
+            <span className={styles.syncDot} style={{ background: online ? '#16a34a' : '#dc2626' }} />
+            {online ? 'Connected' : 'Offline'}
+          </span>
+        )}
       </div>
     </header>
   )

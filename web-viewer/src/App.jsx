@@ -16,11 +16,26 @@ import Reports from './screens/Reports'
 import Settings from './screens/Settings'
 import Staff from './screens/Staff'
 import styles from './App.module.css'
+import bgVideo from './assets/149275-795936702_medium.mp4'
+import chickenLogo from './assets/chicken-logo.jpg'
 
 function AppContent() {
   const { session } = useAuth()
-  if (session === undefined) return <div className={styles.loading}><div className={styles.spinner} /></div>
+
+  if (session === undefined) {
+    return (
+      <div className={styles.loadingScreen}>
+        <video src={bgVideo} className={styles.loadingVideoBg} autoPlay loop muted playsInline />
+        <div className={styles.loadingOverlay}>
+          <img src={chickenLogo} alt="Eldesign Poultry" className={styles.loadingLogo} />
+          <div className={styles.loadingName}>Eldesign Poultry</div>
+        </div>
+      </div>
+    )
+  }
+
   if (!session) return <LoginScreen />
+
   return (
     <MonthProvider>
       <AppShell>
