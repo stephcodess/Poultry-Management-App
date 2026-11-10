@@ -49,6 +49,7 @@ export default function Settings() {
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [confirmDelete, setConfirmDelete] = useState(null) // { id, name, type: 'flock'|'price' }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -104,9 +105,16 @@ export default function Settings() {
     flash()
   }
 
-  async function handleDeleteFlock(id) {
-    const { error } = await supabase.from('flocks').delete().eq('id', id)
-    if (!error) setFlocks(prev => prev.filter(f => f.id !== id))
+  async function handleConfirmDelete() {
+    if (!confirmDelete) return
+    if (confirmDelete.type === 'flock') {
+      const { error } = await supabase.from('flocks').delete().eq('id', confirmDelete.id)
+      if (!error) setFlocks(prev => prev.filter(f => f.id !== confirmDelete.id))
+    } else if (confirmDelete.type === 'price') {
+      const { error } = await supabase.from('egg_prices').delete().eq('id', confirmDelete.id)
+      if (!error) setPrices(prev => prev.filter(x => x.id !== confirmDelete.id))
+    }
+    setConfirmDelete(null)
   }
 
   async function handleAddFlock() {
@@ -127,9 +135,9 @@ export default function Settings() {
     flash()
   }
 
-  async function handleDeletePrice(id) {
-    const { error } = await supabase.from('egg_prices').delete().eq('id', id)
-    if (!error) setPrices(prev => prev.filter(x => x.id !== id))
+  function handleDeletePrice(id) {
+    const price = prices.find(p => p.id === id)
+    setConfirmDelete({ id, name: price?.size || 'this egg size', type: 'price' })
   }
 
   async function handleAddPrice() {
@@ -237,7 +245,7 @@ export default function Settings() {
                         </div>
                       </div>
                       <div className={styles.flockCardFooter}>
-                        <Button size="sm" variant="danger" onClick={() => handleDeleteFlock(flock.id)}>Delete</Button>
+                        <Button size="sm" variant="danger" onClick={() => setConfirmDelete({ id: flock.id, name: flock.name, type: 'flock' })}>Delete</Button>
                         <Button size="sm" onClick={() => handleSaveFlock(flock)}>Save Changes</Button>
                       </div>
                     </>
@@ -327,5 +335,27 @@ export default function Settings() {
       </section>
 
     </div>
+
+    {confirmDelete && (
+      <Modal
+        title="Confirm Delete"
+        onClose={() => setConfirmDelete(null)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button variant="danger" onClick={handleConfirmDelete}>Delete</Button>
+          </>
+        }
+      >
+        <p style={{ fontSize: 15, color: 'var(--color-text)', lineHeight: 1.6 }}>
+          Are you sure you want to delete <strong>{confirmDelete.name}</strong>?
+          {confirmDelete.type === 'flock' && (
+            <span style={{ display: 'block', marginTop: 8, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+              Production and sales records linked to it will remain but show as "Unknown Flock".
+            </span>
+          )}
+        </p>
+      </Modal>
+    )}
   )
 }
