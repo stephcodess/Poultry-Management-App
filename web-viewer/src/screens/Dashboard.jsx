@@ -229,7 +229,7 @@ export default function Dashboard() {
       {flocks.some(f => f.date_acquired) && (
         <div className={styles.flockAgeStrip}>
           {flocks.filter(f => f.date_acquired).map(f => {
-            const live = getLiveBirds(f.id, f.initial_birds || f.initial_bird_count)
+            const live = getLiveBirds(f.id, f.initial_bird_count)
             const ageWeeks = f.age_weeks_at_acquisition != null
               ? f.age_weeks_at_acquisition + Math.floor(dayjs().diff(dayjs(f.date_acquired), 'day') / 7)
               : dayjs().diff(dayjs(f.date_acquired), 'week')

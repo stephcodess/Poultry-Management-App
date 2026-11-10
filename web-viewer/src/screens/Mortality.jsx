@@ -64,7 +64,7 @@ export default function Mortality() {
       const allMov = allMovRes.data || []
       const enriched = fks.map(fk => {
         const removed = allMov.filter(m => m.flock_id === fk.id).reduce((s, m) => s + (m.count || 0), 0)
-        const live = Math.max(0, (fk.initial_birds || 0) - removed)
+        const live = Math.max(0, (fk.initial_bird_count || 0) - removed)
         const age_weeks = fk.date_acquired ? dayjs().diff(dayjs(fk.date_acquired), 'week') : null
         return { ...fk, live_birds: live, removed_total: removed, age_weeks }
       })
@@ -120,7 +120,7 @@ export default function Mortality() {
       {/* Bird count cards */}
       <div className={styles.birdGrid}>
         {flocks.map(fk => {
-          const removedPct = fk.initial_birds > 0 ? Math.min(100, (fk.removed_total / fk.initial_birds) * 100) : 0
+          const removedPct = fk.initial_bird_count > 0 ? Math.min(100, (fk.removed_total / fk.initial_bird_count) * 100) : 0
           return (
             <div key={fk.id} className={styles.birdCard} style={{ borderTopColor: fk.color || '#dc2626' }}>
               <div className={styles.birdCardHeader}>

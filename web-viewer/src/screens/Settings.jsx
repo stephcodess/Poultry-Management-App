@@ -44,7 +44,7 @@ export default function Settings() {
   const [settings, setSettings] = useState({})
   const [prices, setPrices] = useState([])
   const [flocks, setFlocks] = useState([])
-  const [newFlock, setNewFlock] = useState({ name: '', color: FLOCK_COLORS[0], initial_birds: '' })
+  const [newFlock, setNewFlock] = useState({ name: '', color: FLOCK_COLORS[0], initial_bird_count: '' })
   const [newPrice, setNewPrice] = useState({ size: '', price_per_crate: '' })
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -91,7 +91,7 @@ export default function Settings() {
       name: flock.name,
       color: flock.color,
       is_active: flock.is_active ? 1 : 0,
-      initial_birds: Number(flock.initial_birds) || 0,
+      initial_bird_count: Number(flock.initial_bird_count) || 0,
       date_acquired: flock.date_acquired || null,
       breed: flock.breed || null,
       expected_lay_end: flock.expected_lay_end || null,
@@ -104,7 +104,11 @@ export default function Settings() {
 
   async function handleDeleteFlock(id) {
     if (!confirm('Delete this flock? Production and sales records linked to it will remain but show as "Unknown Flock".')) return
-    await supabase.from('flocks').delete().eq('id', id)
+    const { error } = await supabase.from('flocks').delete().eq('id', id)
+    if (error) {
+      alert('Cannot delete this flock — it has linked production, sales, or movement records.\n\nDeactivate it instead by toggling "Active" off.')
+      return
+    }
     load()
   }
 
@@ -113,10 +117,10 @@ export default function Settings() {
     await supabase.from('flocks').insert({
       name: newFlock.name.trim(),
       color: newFlock.color,
-      initial_birds: Number(newFlock.initial_birds) || 0,
+      initial_bird_count: Number(newFlock.initial_bird_count) || 0,
       is_active: 1,
     })
-    setNewFlock({ name: '', color: FLOCK_COLORS[0], initial_birds: '' })
+    setNewFlock({ name: '', color: FLOCK_COLORS[0], initial_bird_count: '' })
     load()
   }
 
@@ -201,7 +205,7 @@ export default function Settings() {
                           </div>
                           <div>
                             <div className={styles.fieldLabel}>Initial Birds</div>
-                            <Input type="number" min="0" value={flock.initial_birds ?? ''} onChange={e => updateFlock(flock.id, 'initial_birds', e.target.value)} />
+                            <Input type="number" min="0" value={flock.initial_bird_count ?? ''} onChange={e => updateFlock(flock.id, 'initial_bird_count', e.target.value)} />
                           </div>
                           <div>
                             <div className={styles.fieldLabel}>Colour</div>
@@ -254,7 +258,7 @@ export default function Settings() {
               </div>
               <div>
                 <div className={styles.fieldLabel}>Initial Birds</div>
-                <Input type="number" min="0" placeholder="0" value={newFlock.initial_birds} onChange={e => setNewFlock(f => ({ ...f, initial_birds: e.target.value }))} />
+                <Input type="number" min="0" placeholder="0" value={newFlock.initial_bird_count} onChange={e => setNewFlock(f => ({ ...f, initial_bird_count: e.target.value }))} />
               </div>
               <div>
                 <div className={styles.fieldLabel}>Colour</div>

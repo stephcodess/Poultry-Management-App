@@ -69,7 +69,7 @@ export default function Production() {
       // Build live bird counts
       const counts = {}
       fks.forEach(fk => {
-        const initial = fk.initial_birds || 0
+        const initial = fk.initial_bird_count || 0
         const removed = movements.filter(m => m.flock_id === fk.id).reduce((s, m) => s + (m.count || 0), 0)
         counts[fk.id] = Math.max(0, initial - removed)
       })
@@ -119,7 +119,7 @@ export default function Production() {
   function openAdd() {
     setEditRecord(null)
     const fk = flocks[0]
-    setForm({ ...EMPTY_FORM, date: dayjs().format('YYYY-MM-DD'), flock_id: fk?.id || '', no_of_birds: fk ? String(liveBirdCounts[fk.id] || fk.initial_birds || '') : '' })
+    setForm({ ...EMPTY_FORM, date: dayjs().format('YYYY-MM-DD'), flock_id: fk?.id || '', no_of_birds: fk ? String(liveBirdCounts[fk.id] || fk.initial_bird_count || '') : '' })
     setShowModal(true)
   }
 
@@ -169,7 +169,7 @@ export default function Production() {
           date: monthYear + '-01',
           month_year: monthYear,
           flock_id: fk.id,
-          no_of_birds: liveBirdCounts[fk.id] || fk.initial_birds || 0,
+          no_of_birds: liveBirdCounts[fk.id] || fk.initial_bird_count || 0,
           crates: Number(f.crates) || 0,
           pieces: Number(f.pieces) || 0,
           _is_opening: true,
@@ -295,7 +295,7 @@ export default function Production() {
                   onChange={e => {
                     const id = e.target.value
                     const fk = flocks.find(f => String(f.id) === String(id))
-                    setForm(f => ({ ...f, flock_id: id, no_of_birds: fk ? String(liveBirdCounts[fk.id] || fk.initial_birds || '') : '' }))
+                    setForm(f => ({ ...f, flock_id: id, no_of_birds: fk ? String(liveBirdCounts[fk.id] || fk.initial_bird_count || '') : '' }))
                   }}>
                   <option value="">— Select flock —</option>
                   {flocks.map(fk => <option key={fk.id} value={fk.id}>{fk.name}</option>)}
