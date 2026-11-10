@@ -305,7 +305,7 @@ CREATE POLICY "anon read debt_payments" ON debt_payments FOR SELECT USING (true)
 
 
 -- ============================================================
--- UPSERT PERMISSIONS (anon key can insert + update)
+-- UPSERT + DELETE PERMISSIONS (anon key can insert, update, delete)
 -- ============================================================
 
 DO $$
@@ -321,5 +321,6 @@ BEGIN
   FOREACH tbl IN ARRAY tables LOOP
     EXECUTE format('CREATE POLICY "anon upsert %I" ON %I FOR INSERT WITH CHECK (true)', tbl, tbl);
     EXECUTE format('CREATE POLICY "anon update %I" ON %I FOR UPDATE USING (true)', tbl, tbl);
+    EXECUTE format('CREATE POLICY "anon delete %I" ON %I FOR DELETE USING (true)', tbl, tbl);
   END LOOP;
 END $$;

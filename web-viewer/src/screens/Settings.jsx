@@ -49,7 +49,6 @@ export default function Settings() {
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [flockError, setFlockError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -105,10 +104,9 @@ export default function Settings() {
     flash()
   }
 
-  async function handleDeactivateFlock(id) {
-    setFlockError('')
-    await supabase.from('flocks').update({ is_active: 0 }).eq('id', id)
-    setFlocks(prev => prev.map(f => f.id === id ? { ...f, is_active: 0 } : f))
+  async function handleDeleteFlock(id) {
+    const { error } = await supabase.from('flocks').delete().eq('id', id)
+    if (!error) setFlocks(prev => prev.filter(f => f.id !== id))
   }
 
   async function handleAddFlock() {
@@ -239,11 +237,7 @@ export default function Settings() {
                         </div>
                       </div>
                       <div className={styles.flockCardFooter}>
-                        {flock.is_active ? (
-                          <Button size="sm" variant="danger" onClick={() => handleDeactivateFlock(flock.id)}>Deactivate</Button>
-                        ) : (
-                          <Button size="sm" variant="secondary" onClick={() => { updateFlock(flock.id, 'is_active', 1); handleSaveFlock({ ...flock, is_active: 1 }) }}>Reactivate</Button>
-                        )}
+                        <Button size="sm" variant="danger" onClick={() => handleDeleteFlock(flock.id)}>Delete</Button>
                         <Button size="sm" onClick={() => handleSaveFlock(flock)}>Save Changes</Button>
                       </div>
                     </>
