@@ -130,7 +130,7 @@ export default function Sales() {
     try {
       const [salesRes, domRes, pricesRes, flocksRes, custRes, incomeRes] = await Promise.all([
         supabase.from('sales')
-          .select('*, flocks(name, color), credit_sales(id, status, amount_owed, credit_customers(id, name, phone))')
+          .select('*, flocks(name, color), credit_sales!credit_sale_id(id, status, amount_owed, amount_paid, customer_id)')
           .eq('month_year', monthYear)
           .order('date', { ascending: false }),
         supabase.from('domestic_usage')
@@ -211,7 +211,7 @@ export default function Sales() {
       crates: String(row.crates ?? ''),
       pieces: String(row.pieces ?? ''),
       payment_status: row.payment_status || 'cash',
-      credit_customer_id: row.credit_sales?.credit_customers?.id || '',
+      credit_customer_id: row.credit_sales?.customer_id || '',
       buyer_name: row.buyer_name || '',
       amount_paid_now: '',
     })
@@ -241,24 +241,33 @@ export default function Sales() {
         }
       } else {
         const { data: inserted } = await supabase.from('sales').insert(data).select().single()
-        if (isCredit && salesForm.credit_customer_id) {
+        if (isCredit && salesForm.credit_customer_id && inserted) {
           const totalRevenue = (Number(salesForm.crates) + Number(salesForm.pieces || 0) / 30) * Number(salesForm.price_per_crate)
           const deposit = Number(salesForm.amount_paid_now) || 0
-          const amountOwed = totalRevenue - deposit
+          const amountOwed = Math.max(totalRevenue - deposit, 0)
           const { data: cs } = await supabase.from('credit_sales').insert({
-            sale_id: inserted.id,
+            date: salesForm.date,
+            month_year: toMonthYear(salesForm.date),
             customer_id: Number(salesForm.credit_customer_id),
-            amount_owed: Math.max(amountOwed, 0),
+            egg_size: salesForm.egg_size,
+            price_per_crate: Number(salesForm.price_per_crate),
+            crates: Number(salesForm.crates),
+            pieces: Number(salesForm.pieces),
+            amount_owed: amountOwed,
+            amount_paid: deposit,
             status: deposit >= totalRevenue ? 'paid' : deposit > 0 ? 'partial' : 'unpaid',
           }).select().single()
-          if (deposit > 0 && cs) {
-            await supabase.from('debt_payments').insert({
-              credit_sale_id: cs.id,
-              customer_id: Number(salesForm.credit_customer_id),
-              amount: deposit,
-              date: salesForm.date,
-              month_year: toMonthYear(salesForm.date),
-            })
+          if (cs) {
+            await supabase.from('sales').update({ credit_sale_id: cs.id }).eq('id', inserted.id)
+            if (deposit > 0) {
+              await supabase.from('debt_payments').insert({
+                credit_sale_id: cs.id,
+                customer_id: Number(salesForm.credit_customer_id),
+                amount: deposit,
+                date: salesForm.date,
+                month_year: toMonthYear(salesForm.date),
+              })
+            }
           }
         }
       }
@@ -509,7 +518,7 @@ export default function Sales() {
                 ? <div className={styles.empty}>No sales match the selected filters.</div>
                 : filteredSales.map(row => {
                   const cs = row.credit_sales
-                  const customerName = cs?.credit_customers?.name || row.buyer_name
+                  const customerName = customers.find(c => c.id === cs?.customer_id)?.name || row.buyer_name
                   const revenue = ((row.crates || 0) + (row.pieces || 0) / 30) * (row.price_per_crate || 0)
                   return (
                     <div key={row.id} className={styles.saleCard}>

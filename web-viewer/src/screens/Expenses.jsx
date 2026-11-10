@@ -112,8 +112,8 @@ export default function Expenses() {
         supabase.from('sales').select('payment_status, crates, pieces, price_per_crate').eq('month_year', monthYear),
         supabase.from('monthly_balance').select('*').eq('month_year', monthYear).maybeSingle(),
         supabase.from('debt_payments').select('amount').eq('month_year', monthYear),
-        supabase.from('staff').select('id, name, position, is_active').order('name'),
-        supabase.from('settings').select('value').eq('key', 'feed_bag_kg').maybeSingle(),
+        supabase.from('users').select('id, name, position, is_active').order('name'),
+        supabase.from('app_settings').select('value').eq('key', 'feed_bag_kg').maybeSingle(),
       ])
       setRecords(expRes.data || [])
       const cashSales = (salesRes.data || [])

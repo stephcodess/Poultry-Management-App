@@ -54,7 +54,7 @@ export default function Settings() {
     setLoading(true)
     try {
       const [sRes, pRes, fRes] = await Promise.all([
-        supabase.from('settings').select('key, value'),
+        supabase.from('app_settings').select('key, value'),
         supabase.from('egg_prices').select('*').order('size'),
         supabase.from('flocks').select('*').order('name'),
       ])
@@ -71,7 +71,7 @@ export default function Settings() {
   function flash() { setSaved(true); setTimeout(() => setSaved(false), 2500) }
 
   async function upsertSetting(key, value) {
-    await supabase.from('settings').upsert({ key, value: String(value) }, { onConflict: 'key' })
+    await supabase.from('app_settings').upsert({ key, value: String(value) }, { onConflict: 'key' })
   }
 
   async function handleSaveSettings() {
