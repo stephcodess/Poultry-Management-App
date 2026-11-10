@@ -105,14 +105,10 @@ export default function Settings() {
     flash()
   }
 
-  async function handleDeleteFlock(id) {
+  async function handleDeactivateFlock(id) {
     setFlockError('')
-    const { error } = await supabase.from('flocks').delete().eq('id', id)
-    if (error) {
-      setFlockError('Cannot delete — this flock has linked records (production, sales, or movements). Deactivate it instead by toggling "Active" off.')
-      return
-    }
-    setFlocks(prev => prev.filter(f => f.id !== id))
+    await supabase.from('flocks').update({ is_active: 0 }).eq('id', id)
+    setFlocks(prev => prev.map(f => f.id === id ? { ...f, is_active: 0 } : f))
   }
 
   async function handleAddFlock() {
@@ -184,11 +180,6 @@ export default function Settings() {
       <section className={styles.section}>
         <SectionHead icon="🐓" iconBg="#f0fdf4" iconColor="#16a34a" title="Flocks" desc="Manage flock lifecycle details to get retirement alerts and production benchmarks." />
         <div className={styles.sectionBody}>
-          {flockError && (
-            <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: 8, padding: '10px 14px', fontSize: 14, marginBottom: 12 }}>
-              ⚠ {flockError}
-            </div>
-          )}
           <div className={styles.flockList}>
             {flocks.map(flock => {
               const retireSoon = flock.expected_lay_end &&
@@ -248,7 +239,11 @@ export default function Settings() {
                         </div>
                       </div>
                       <div className={styles.flockCardFooter}>
-                        <Button size="sm" variant="danger" onClick={() => handleDeleteFlock(flock.id)}>Delete</Button>
+                        {flock.is_active ? (
+                          <Button size="sm" variant="danger" onClick={() => handleDeactivateFlock(flock.id)}>Deactivate</Button>
+                        ) : (
+                          <Button size="sm" variant="secondary" onClick={() => { updateFlock(flock.id, 'is_active', 1); handleSaveFlock({ ...flock, is_active: 1 }) }}>Reactivate</Button>
+                        )}
                         <Button size="sm" onClick={() => handleSaveFlock(flock)}>Save Changes</Button>
                       </div>
                     </>
