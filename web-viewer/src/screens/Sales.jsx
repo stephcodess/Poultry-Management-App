@@ -138,8 +138,8 @@ export default function Sales() {
           .eq('month_year', monthYear)
           .order('date', { ascending: false }),
         supabase.from('egg_prices').select('*').order('id'),
-        supabase.from('flocks').select('*').eq('is_active', true).order('name'),
-        supabase.from('credit_customers').select('*').eq('is_active', true).order('name'),
+        supabase.from('flocks').select('*').neq('is_active', 0).order('name'),
+        supabase.from('credit_customers').select('*').neq('is_active', 0).order('name'),
         supabase.from('other_income')
           .select('*')
           .eq('month_year', monthYear)
@@ -285,7 +285,7 @@ export default function Sales() {
     const { data: nc } = await supabase.from('credit_customers').insert({
       name: newCustomerName.trim(), phone: newCustomerPhone.trim() || null, notes: null, is_active: true,
     }).select().single()
-    const { data: updated } = await supabase.from('credit_customers').select('*').eq('is_active', true).order('name')
+    const { data: updated } = await supabase.from('credit_customers').select('*').neq('is_active', 0).order('name')
     setCustomers(updated || [])
     if (nc) setSalesForm(f => ({ ...f, credit_customer_id: nc.id }))
     setNewCustomerName(''); setNewCustomerPhone('')

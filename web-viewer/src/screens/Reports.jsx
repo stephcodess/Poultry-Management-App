@@ -313,7 +313,7 @@ function ControlRecord() {
   const [previewHtml, setPreviewHtml] = useState(null)
 
   useEffect(() => {
-    supabase.from('flocks').select('*').eq('is_active', 1).order('sort_order').then(({ data }) => setFlocks(data || []))
+    supabase.from('flocks').select('*').neq('is_active', 0).order('sort_order').then(({ data }) => setFlocks(data || []))
   }, [])
 
   async function generate() {
@@ -329,7 +329,7 @@ function ControlRecord() {
         { data: healthRaw },
         { data: settingsRaw },
       ] = await Promise.all([
-        supabase.from('flocks').select('*').eq('is_active', 1).order('sort_order'),
+        supabase.from('flocks').select('*').neq('is_active', 0).order('sort_order'),
         supabase.from('flock_movements').select('flock_id, count').lt('date', from),
         supabase.from('flock_movements').select('date, flock_id, count').gte('date', from).lte('date', to),
         supabase.from('feed_log').select('date, flock_id, quantity_kg').gte('date', from).lte('date', to),

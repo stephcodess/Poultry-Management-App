@@ -56,7 +56,7 @@ export default function Production() {
     try {
       const [prodRes, flocksRes, movRes] = await Promise.all([
         supabase.from('production').select('*, flocks(name, color)').eq('month_year', monthYear).order('date', { ascending: false }),
-        supabase.from('flocks').select('*').eq('is_active', true).order('name'),
+        supabase.from('flocks').select('*').neq('is_active', 0).order('name'),
         supabase.from('flock_movements').select('flock_id, count, reason').order('date'),
       ])
       const rows = prodRes.data || []

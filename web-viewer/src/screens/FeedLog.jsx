@@ -90,7 +90,7 @@ function FeedTab({ monthYear }) {
     try {
       const [recRes, fkRes, cfgRes, allFeedRes, allExpRes] = await Promise.all([
         supabase.from('feed_log').select('*, flocks(name, color)').eq('month_year', monthYear).order('date', { ascending: false }),
-        supabase.from('flocks').select('*').eq('is_active', true).order('name'),
+        supabase.from('flocks').select('*').neq('is_active', 0).order('name'),
         supabase.from('settings').select('value').eq('key', 'feed_bag_kg').maybeSingle(),
         supabase.from('feed_log').select('feed_type, quantity_kg'),
         supabase.from('expenses').select('feed_type, quantity_kg').eq('category', 'Feed').not('feed_type', 'is', null),
@@ -282,7 +282,7 @@ function WaterTab({ monthYear }) {
     try {
       const [recRes, fkRes] = await Promise.all([
         supabase.from('water_log').select('*, flocks(name, color)').eq('month_year', monthYear).order('date', { ascending: false }),
-        supabase.from('flocks').select('*').eq('is_active', true).order('name'),
+        supabase.from('flocks').select('*').neq('is_active', 0).order('name'),
       ])
       setRecords(recRes.data || [])
       setFlocks(fkRes.data || [])

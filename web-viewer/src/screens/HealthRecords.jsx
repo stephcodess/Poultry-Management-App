@@ -80,7 +80,7 @@ export default function HealthRecords() {
       const [recRes, upRes, fkRes] = await Promise.all([
         supabase.from('health_records').select('*, flocks(name, color)').eq('month_year', monthYear).order('date', { ascending: false }),
         supabase.from('health_records').select('*, flocks(name, color)').gte('next_due_date', today).lte('next_due_date', in30).order('next_due_date'),
-        supabase.from('flocks').select('*').eq('is_active', true).order('name'),
+        supabase.from('flocks').select('*').neq('is_active', 0).order('name'),
       ])
       setRecords(recRes.data || [])
       setUpcoming(upRes.data || [])

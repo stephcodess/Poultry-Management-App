@@ -17,7 +17,10 @@ export function formatEggs(totalPieces) {
 }
 
 export function formatDate(dateStr) {
-  return dayjs(dateStr).format('DD MMM YYYY')
+  if (!dateStr) return '—'
+  // Handle ISO timestamps: take date part only
+  const d = dayjs(String(dateStr).slice(0, 10))
+  return d.isValid() ? d.format('DD MMM YYYY') : '—'
 }
 
 export function formatMonthYear(monthYear) {
@@ -29,7 +32,8 @@ export function currentMonthYear() {
 }
 
 export function toMonthYear(dateStr) {
-  return dayjs(dateStr).format('YYYY-MM')
+  if (!dateStr) return dayjs().format('YYYY-MM')
+  return dayjs(String(dateStr).slice(0, 10)).format('YYYY-MM')
 }
 
 export const LAYER_LABELS = {

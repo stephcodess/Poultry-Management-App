@@ -62,7 +62,7 @@ export default function Dashboard() {
       supabase.from('production').select('date, crates, pieces, flock_id, daily_yield_pct').eq('month_year', monthYear),
       supabase.from('sales').select('payment_status, crates, pieces, price_per_crate').eq('month_year', monthYear),
       supabase.from('expenses').select('amount, category').eq('month_year', monthYear),
-      supabase.from('flocks').select('*').eq('is_active', 1),
+      supabase.from('flocks').select('*').neq('is_active', 0),
       supabase.from('flock_movements').select('flock_id, count'),
       supabase.from('credit_sales').select('amount_owed, amount_paid').eq('month_year', monthYear),
       supabase.from('debt_payments').select('amount').eq('month_year', monthYear),

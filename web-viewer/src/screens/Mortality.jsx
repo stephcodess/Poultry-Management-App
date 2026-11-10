@@ -56,7 +56,7 @@ export default function Mortality() {
     try {
       const [recRes, fkRes, allMovRes] = await Promise.all([
         supabase.from('flock_movements').select('*, flocks(name, color)').eq('month_year', monthYear).order('date', { ascending: false }),
-        supabase.from('flocks').select('*').eq('is_active', true).order('name'),
+        supabase.from('flocks').select('*').neq('is_active', 0).order('name'),
         supabase.from('flock_movements').select('flock_id, count'),
       ])
       setRecords(recRes.data || [])
