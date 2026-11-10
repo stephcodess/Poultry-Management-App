@@ -21,6 +21,7 @@ export function AuthProvider({ children }) {
 
     if (error || !data) return { error: 'Invalid email or password.' }
     if (!data.is_active) return { error: 'Account is inactive.' }
+    if (data.role === 'none') return { error: 'This account does not have app access.' }
     if (!data.password_hash) return { error: 'Account not yet activated.' }
 
     const valid = await bcrypt.compare(password, data.password_hash)

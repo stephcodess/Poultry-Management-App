@@ -25,6 +25,44 @@ const TITLES = {
 }
 
 
+function SyncBadge({ state, styles }) {
+  const { online, syncing, pending, error } = state
+
+  if (!online) {
+    return (
+      <span className={`${styles.syncBadge} ${styles.syncBadgeOffline}`} title="No internet connection — changes are saved locally">
+        ● Offline{pending > 0 ? ` · ${pending} pending` : ''}
+      </span>
+    )
+  }
+  if (syncing) {
+    return (
+      <span className={`${styles.syncBadge} ${styles.syncBadgeSyncing}`} title="Syncing with cloud...">
+        <span className={styles.syncSpinner} /> Syncing…
+      </span>
+    )
+  }
+  if (error) {
+    return (
+      <span className={`${styles.syncBadge} ${styles.syncBadgeErr}`} title={error}>
+        ☁ Sync error
+      </span>
+    )
+  }
+  if (pending > 0) {
+    return (
+      <span className={`${styles.syncBadge} ${styles.syncBadgePending}`} title={`${pending} change${pending !== 1 ? 's' : ''} waiting to sync`}>
+        ☁ {pending} pending
+      </span>
+    )
+  }
+  return (
+    <span className={`${styles.syncBadge} ${styles.syncBadgeOk}`} title="All changes synced to cloud">
+      ☁ Synced
+    </span>
+  )
+}
+
 export default function Header() {
   const { pathname } = useLocation()
   const { monthYear, setMonthYear } = useMonth()
@@ -37,7 +75,15 @@ export default function Header() {
   const [showControlRecord, setShowControlRecord] = useState(false)
   const [exporting, setExporting]             = useState(false)
   const [exportingAnnual, setExportingAnnual] = useState(false)
-  const [syncStatus, setSyncStatus]           = useState(null) // 'ok' | 'error'
+  // syncState: { online, syncing, syncedAt, pending, error, configured }
+  const [syncState, setSyncState] = useState(null)
+
+  // Subscribe to sync status push events from main process
+  useEffect(() => {
+    window.api.sync.getStatus().then(s => setSyncState(s))
+    const unsub = window.api.sync.onStatus(s => setSyncState(s))
+    return unsub
+  }, [])
 
   // Monthly PDF export (called from preview modal)
   async function handleMonthlyExport() {
@@ -120,11 +166,7 @@ export default function Header() {
               />
             </>
           )}
-          {syncStatus && (
-            <span className={`${styles.syncBadge} ${syncStatus === 'ok' ? styles.syncBadgeOk : styles.syncBadgeErr}`}>
-              {syncStatus === 'ok' ? '☁ Synced' : '☁ Sync failed'}
-            </span>
-          )}
+          {syncState?.configured && <SyncBadge state={syncState} styles={styles} />}
           {session && (
             <button className={styles.logoutBtn} onClick={logout} title="Sign out">
               Sign Out

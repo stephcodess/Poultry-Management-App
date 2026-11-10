@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../utils/AuthContext'
 import styles from './Profile.module.css'
+import { PasswordInput } from '../../components/common/FormField'
 
 const ROLE_META = {
   owner:  { label: 'Owner',  desc: 'Full access — can manage users, settings, and all farm data.', color: '#6d28d9', bg: '#ede9fe' },
@@ -109,19 +110,19 @@ export default function Profile() {
             {pwSuccess && <div className={styles.successBox}>{pwSuccess}</div>}
             <div className={styles.field}>
               <label className={styles.label}>Current Password</label>
-              <input className={styles.input} type="password" value={pw.current}
+              <PasswordInput inputClassName={styles.input} value={pw.current}
                 onChange={e => setPw(p => ({ ...p, current: e.target.value }))} required />
             </div>
             <div className={styles.pwRow}>
               <div className={styles.field}>
                 <label className={styles.label}>New Password</label>
-                <input className={styles.input} type="password" value={pw.next}
+                <PasswordInput inputClassName={styles.input} value={pw.next}
                   placeholder="Min. 6 characters"
                   onChange={e => setPw(p => ({ ...p, next: e.target.value }))} required />
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Confirm New Password</label>
-                <input className={styles.input} type="password" value={pw.confirm}
+                <PasswordInput inputClassName={styles.input} value={pw.confirm}
                   onChange={e => setPw(p => ({ ...p, confirm: e.target.value }))} required />
               </div>
             </div>

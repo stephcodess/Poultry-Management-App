@@ -38,3 +38,33 @@ select.input {
 
 .hint { font-size: 13.5px; color: var(--color-text-muted); line-height: 1.4; }
 .error { font-size: 13.5px; color: var(--color-danger); }
+
+.pwWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pwInput {
+  padding-right: 46px;
+}
+
+.pwToggle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--color-text-secondary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  transition: color 0.15s;
+}
+
+.pwToggle:hover { color: var(--color-text); }

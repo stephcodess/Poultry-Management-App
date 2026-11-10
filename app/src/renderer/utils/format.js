@@ -39,7 +39,12 @@ export const LAYER_LABELS = {
 
 export const EGG_SIZES = ['Small', 'Medium', 'Big', 'Others']
 export const PAYMENT_METHODS = ['Cash', 'Transfer', 'POS', 'Cheque']
+
+// Categories that require a staff member to be selected
+export const STAFF_EXPENSE_CATEGORIES = ['Salary', 'IOU', 'Bonus']
+
 export const EXPENSE_CATEGORIES = [
   'Feed', 'Medication', 'Labour', 'Utilities',
   'Equipment', 'Transport', 'Maintenance', 'Miscellaneous',
+  ...STAFF_EXPENSE_CATEGORIES,
 ]

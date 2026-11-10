@@ -182,6 +182,11 @@
 .badge_active { background: #dcfce7; color: #16a34a; }
 .badge_pending { background: #fef3c7; color: #d97706; }
 .badge_inactive { background: #f1f5f9; color: #94a3b8; }
+.badge_none { background: #f1f5f9; color: #94a3b8; }
+.badge_staff { background: #ede9fe; color: #6d28d9; }
+
+.dimCell { color: #64748b; font-size: 13px; }
+.dash { color: #cbd5e1; }
 
 /* Change Password Section */
 .section {

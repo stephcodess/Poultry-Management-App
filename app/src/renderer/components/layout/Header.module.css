@@ -133,11 +133,14 @@
 }
 
 .syncBadge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   font-weight: 600;
   padding: 3px 9px;
   border-radius: 9999px;
-  animation: fadeInOut 4s ease forwards;
+  white-space: nowrap;
 }
 
 .syncBadgeOk {
@@ -145,14 +148,37 @@
   color: #166534;
 }
 
+.syncBadgeOffline {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.syncBadgePending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.syncBadgeSyncing {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
 .syncBadgeErr {
   background: #fee2e2;
   color: #991b1b;
 }
 
-@keyframes fadeInOut {
-  0%   { opacity: 0; transform: translateY(-4px); }
-  15%  { opacity: 1; transform: translateY(0); }
-  70%  { opacity: 1; }
-  100% { opacity: 0; }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.syncSpinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
 }

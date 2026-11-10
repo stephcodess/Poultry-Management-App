@@ -1,27 +1,32 @@
+const { net } = require('electron')
+
 const TABLES = [
-  { name: 'users',            conflictKey: 'id',              exclude: ['invite_token', 'invite_expires_at'] },
-  { name: 'flocks',           conflictKey: 'id',              exclude: [] },
-  { name: 'flock_movements',  conflictKey: 'id',              exclude: [] },
-  { name: 'production',       conflictKey: 'id',              exclude: ['total_eggs', 'daily_yield_pct'] },
-  { name: 'credit_customers', conflictKey: 'id',              exclude: [] },
-  { name: 'credit_sales',     conflictKey: 'id',              exclude: ['amount_owed'] },
-  { name: 'sales',            conflictKey: 'id',              exclude: ['total_revenue', 'credit_customer_id', 'credit_sale_id'] },
-  { name: 'domestic_usage',   conflictKey: 'id',              exclude: [] },
-  { name: 'expenses',         conflictKey: 'id',              exclude: [] },
-  { name: 'feed_log',         conflictKey: 'id',              exclude: ['total_cost'] },
-  { name: 'health_records',   conflictKey: 'id',              exclude: [] },
-  { name: 'monthly_balance',  conflictKey: 'month_year',      exclude: [] },
+  { name: 'users',            conflictKey: 'id',                 exclude: ['invite_token', 'invite_expires_at'] },
+  { name: 'flocks',           conflictKey: 'id',                 exclude: [] },
+  { name: 'flock_movements',  conflictKey: 'id',                 exclude: [] },
+  { name: 'production',       conflictKey: 'id',                 exclude: ['total_eggs', 'daily_yield_pct'] },
+  { name: 'credit_customers', conflictKey: 'id',                 exclude: [] },
+  { name: 'credit_sales',     conflictKey: 'id',                 exclude: ['amount_owed'] },
+  { name: 'sales',            conflictKey: 'id',                 exclude: ['total_revenue', 'credit_customer_id', 'credit_sale_id'] },
+  { name: 'domestic_usage',   conflictKey: 'id',                 exclude: [] },
+  { name: 'expenses',         conflictKey: 'id',                 exclude: [] },
+  { name: 'feed_log',         conflictKey: 'id',                 exclude: ['total_cost'] },
+  { name: 'health_records',   conflictKey: 'id',                 exclude: [] },
+  { name: 'monthly_balance',  conflictKey: 'month_year',         exclude: [] },
   { name: 'opening_stock',    conflictKey: 'month_year,flock_id', exclude: [] },
-  { name: 'egg_prices',       conflictKey: 'id',              exclude: [] },
-  { name: 'settings',         conflictKey: 'key',             exclude: [], remoteTable: 'app_settings' },
-  { name: 'debt_payments',    conflictKey: 'id',              exclude: [] },
-  { name: 'water_log',        conflictKey: 'id',              exclude: [] },
+  { name: 'egg_prices',       conflictKey: 'id',                 exclude: [] },
+  { name: 'settings',         conflictKey: 'key',                exclude: [], remoteTable: 'app_settings' },
+  { name: 'debt_payments',    conflictKey: 'id',                 exclude: [] },
+  { name: 'water_log',        conflictKey: 'id',                 exclude: [] },
 ]
 
-// Columns that are SQLite-generated and must never be sent to Supabase
-const EXCLUDE_MAP = Object.fromEntries(TABLES.map(t => [t.name, t.exclude]))
-const CONFLICT_MAP = Object.fromEntries(TABLES.map(t => [t.name, t.conflictKey]))
+const EXCLUDE_MAP      = Object.fromEntries(TABLES.map(t => [t.name, t.exclude]))
+const CONFLICT_MAP     = Object.fromEntries(TABLES.map(t => [t.name, t.conflictKey]))
 const REMOTE_TABLE_MAP = Object.fromEntries(TABLES.map(t => [t.name, t.remoteTable || t.name]))
+
+function isOnline() {
+  return net.isOnline()
+}
 
 function stripColumns(rows, exclude) {
   if (!exclude.length) return rows
@@ -54,7 +59,6 @@ async function upsertChunk(url, remoteTable, conflictKey, chunk, headers) {
 }
 
 async function deleteRemote(url, remoteTable, conflictKey, payload, headers) {
-  // payload is a single record; delete by its conflict key(s)
   const keys = conflictKey.split(',')
   const filters = keys.map(k => `${k}=eq.${payload[k]}`).join('&')
   const res = await fetch(`${url}/rest/v1/${remoteTable}?${filters}`, {
@@ -67,7 +71,8 @@ async function deleteRemote(url, remoteTable, conflictKey, payload, headers) {
   }
 }
 
-// ─── PULL: Supabase → SQLite ──────────────────────────────────────────────────
+// ─── PULL: Supabase → SQLite (Supabase wins on conflict) ─────────────────────
+// This is the "source of truth" direction. Called on startup and periodically.
 
 async function pullFromSupabase(db, supabaseUrl, supabaseKey) {
   const headers = makeHeaders(supabaseKey)
@@ -85,7 +90,6 @@ async function pullFromSupabase(db, supabaseUrl, supabaseKey) {
       const rows = await res.json()
       if (!Array.isArray(rows) || rows.length === 0) { counts[name] = 0; continue }
 
-      // Upsert each row into local SQLite
       const cols = Object.keys(rows[0])
       const placeholders = cols.map(() => '?').join(', ')
       const conflictCols = conflictKey.split(',')
@@ -144,13 +148,22 @@ async function pushToSupabase(db, supabaseUrl, supabaseKey) {
   return { success: true, counts, syncedAt: new Date().toISOString() }
 }
 
-// ─── SINGLE-RECORD WRITE: push one record, queue if offline ──────────────────
+// ─── SINGLE-RECORD WRITE: push immediately if online, queue if offline ────────
 
 async function pushRecord(db, supabaseUrl, supabaseKey, tableName, operation, payload) {
   const conflictKey = CONFLICT_MAP[tableName] || 'id'
   const remoteTable = REMOTE_TABLE_MAP[tableName] || tableName
-  const exclude = EXCLUDE_MAP[tableName] || []
-  const cleaned = stripColumns([payload], exclude)[0]
+  const exclude     = EXCLUDE_MAP[tableName] || []
+  const cleaned     = stripColumns([payload], exclude)[0]
+
+  // Queue immediately if offline — no wasted round-trip
+  if (!isOnline() || !supabaseUrl || !supabaseKey) {
+    db.prepare(`
+      INSERT INTO offline_queue (table_name, remote_table, operation, conflict_key, payload)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(tableName, remoteTable, operation, conflictKey, JSON.stringify(cleaned))
+    return { queued: true }
+  }
 
   try {
     const headers = makeHeaders(supabaseKey)
@@ -161,7 +174,6 @@ async function pushRecord(db, supabaseUrl, supabaseKey, tableName, operation, pa
     }
     return { queued: false }
   } catch (err) {
-    // Offline or Supabase error — queue for later
     console.warn(`[pushRecord] Queuing ${operation} on ${tableName}:`, err.message)
     db.prepare(`
       INSERT INTO offline_queue (table_name, remote_table, operation, conflict_key, payload)
@@ -171,7 +183,7 @@ async function pushRecord(db, supabaseUrl, supabaseKey, tableName, operation, pa
   }
 }
 
-// ─── FLUSH: replay queued offline writes ─────────────────────────────────────
+// ─── FLUSH: replay queued offline writes in order ────────────────────────────
 
 async function flushOfflineQueue(db, supabaseUrl, supabaseKey) {
   const queue = db.prepare('SELECT * FROM offline_queue ORDER BY id ASC').all()
@@ -192,7 +204,7 @@ async function flushOfflineQueue(db, supabaseUrl, supabaseKey) {
       flushed++
     } catch (err) {
       console.warn(`[flushOfflineQueue] Still failing item ${item.id}:`, err.message)
-      break // stop at first failure — network still down
+      break
     }
   }
 
@@ -200,7 +212,7 @@ async function flushOfflineQueue(db, supabaseUrl, supabaseKey) {
   return { flushed, remaining }
 }
 
-// ─── AUTH HELPERS: check/fetch a user from Supabase ──────────────────────────
+// ─── AUTH HELPERS ─────────────────────────────────────────────────────────────
 
 async function fetchUserFromSupabase(supabaseUrl, supabaseKey, email) {
   const headers = makeHeaders(supabaseKey)
@@ -213,4 +225,4 @@ async function fetchUserFromSupabase(supabaseUrl, supabaseKey, email) {
   return rows[0] || null
 }
 
-module.exports = { pullFromSupabase, pushToSupabase, pushRecord, flushOfflineQueue, fetchUserFromSupabase }
+module.exports = { pullFromSupabase, pushToSupabase, pushRecord, flushOfflineQueue, fetchUserFromSupabase, isOnline }

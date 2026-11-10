@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import Button from '../components/common/Button'
-import FormField, { Input, Select } from '../components/common/FormField'
+import FormField, { Input, Select, PasswordInput } from '../components/common/FormField'
 import { useTourLauncher } from '../components/tour/TourGuide'
 import styles from './Settings.module.css'
 
@@ -474,16 +474,14 @@ export default function Settings() {
         <div className={styles.sectionBody}>
           <div className={styles.farmGrid}>
             <FormField label="Gemini API Key" hint="Free at aistudio.google.com · 1,500 req/day, no credit card">
-              <Input
-                type="password"
+              <PasswordInput
                 placeholder="Paste Gemini key here"
                 value={settings.gemini_api_key || ''}
                 onChange={e => setSettings(s => ({ ...s, gemini_api_key: e.target.value }))}
               />
             </FormField>
             <FormField label="OpenAI API Key" hint="platform.openai.com · Uses gpt-4o-mini (very cheap)">
-              <Input
-                type="password"
+              <PasswordInput
                 placeholder="Paste OpenAI key here"
                 value={settings.openai_api_key || ''}
                 onChange={e => setSettings(s => ({ ...s, openai_api_key: e.target.value }))}

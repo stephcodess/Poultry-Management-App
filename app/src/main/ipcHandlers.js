@@ -67,6 +67,7 @@ function registerHandlers(ipcMain) {
   registerDebtorsHandlers(ipcMain)
   registerReportHandlers(ipcMain)
   registerSyncHandlers(ipcMain)
+  registerStaffHandlers(ipcMain)
 }
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
@@ -105,6 +106,7 @@ function registerAuthHandlers(ipcMain) {
 
     if (!user) return { status: 'not_found' }
     if (!user.is_active) return { status: 'inactive' }
+    if (user.role === 'none') return { status: 'no_access' }
     if (!user.password_hash) return { status: 'pending', name: user.name }
     return { status: 'active', name: user.name }
   })
@@ -114,6 +116,7 @@ function registerAuthHandlers(ipcMain) {
     const db = getDb()
     const user = db.prepare('SELECT * FROM users WHERE email = ? AND is_active = 1').get(email)
     if (!user) return { error: 'invalid_credentials', message: 'Invalid email or password.' }
+    if (user.role === 'none') return { error: 'no_access', message: 'This account does not have app access.' }
     if (!user.password_hash) return { error: 'no_password' }
     const valid = await bcrypt.compare(password, user.password_hash)
     if (!valid) return { error: 'invalid_credentials', message: 'Invalid email or password.' }
@@ -157,43 +160,51 @@ function registerAuthHandlers(ipcMain) {
     return { success: true, user: sessionUser }
   })
 
-  // Invite user — write to SQLite + push to Supabase
-  ipcMain.handle('auth:inviteUser', async (_, { name, email, role }, session) => {
+  // Add staff member (with or without app access)
+  ipcMain.handle('auth:inviteUser', async (_, { name, email, role, position, phone }, session) => {
     if (!session || !['owner', 'admin'].includes(session.role)) return { error: 'forbidden' }
-    const roleOrder = { owner: 4, admin: 3, editor: 2, viewer: 1 }
-    if (roleOrder[role] >= roleOrder[session.role]) return { error: 'forbidden', message: 'Cannot assign a role equal to or higher than your own.' }
-    const db = getDb()
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email)
-    if (existing) {
-      db.prepare('UPDATE users SET name = ?, role = ?, is_active = 1, created_by = ?, invite_token = NULL, invite_expires_at = NULL WHERE email = ?')
-        .run(name, role, session.id, email)
-    } else {
-      db.prepare('INSERT INTO users (name, email, role, is_active, created_by) VALUES (?, ?, ?, 1, ?)')
-        .run(name, email, role, session.id)
+    const roleOrder = { owner: 4, admin: 3, editor: 2, viewer: 1, none: 0 }
+    // none role is always allowed; for others, cannot assign equal/higher than own
+    if (role !== 'none' && roleOrder[role] >= roleOrder[session.role]) {
+      return { error: 'forbidden', message: 'Cannot assign a role equal to or higher than your own.' }
     }
-    const user = db.prepare('SELECT id, name, email, role, is_active, created_by FROM users WHERE email = ?').get(email)
-    logActivity({ userId: session.id, userName: session.name, userEmail: session.email, action: 'user:invite', entity: 'user', entityId: user.id, details: { email, role } })
+    const db = getDb()
+    let userId
+    const existing = email ? db.prepare('SELECT id FROM users WHERE email = ?').get(email) : null
+    if (existing) {
+      db.prepare('UPDATE users SET name = ?, role = ?, position = ?, phone = ?, is_active = 1, created_by = ?, invite_token = NULL, invite_expires_at = NULL WHERE id = ?')
+        .run(name, role, position || null, phone || null, session.id, existing.id)
+      userId = existing.id
+    } else {
+      const result = db.prepare('INSERT INTO users (name, email, role, position, phone, is_active, created_by) VALUES (?, ?, ?, ?, ?, 1, ?)')
+        .run(name, email || null, role, position || null, phone || null, session.id)
+      userId = result.lastInsertRowid
+    }
+    const user = db.prepare('SELECT id, name, email, role, position, phone, is_active, created_by FROM users WHERE id = ?').get(userId)
+    logActivity({ userId: session.id, userName: session.name, userEmail: session.email, action: 'staff:add', entity: 'user', entityId: userId, details: { role } })
     syncWrite('users', 'upsert', user)
     return { success: true, user }
   })
 
   ipcMain.handle('auth:getUsers', (_, session) => {
     if (!session || !['owner', 'admin'].includes(session.role)) return { error: 'forbidden' }
-    return getDb().prepare('SELECT id, name, email, role, is_active, (password_hash IS NOT NULL) as has_password, created_at, last_login_at FROM users ORDER BY created_at ASC').all()
+    return getDb().prepare('SELECT id, name, email, role, position, phone, is_active, (password_hash IS NOT NULL) as has_password, created_at, last_login_at FROM users ORDER BY created_at ASC').all()
   })
 
-  ipcMain.handle('auth:updateUser', (_, { id, name, role, is_active }, session) => {
+  ipcMain.handle('auth:updateUser', (_, { id, name, role, position, phone, is_active }, session) => {
     if (!session || !['owner', 'admin'].includes(session.role)) return { error: 'forbidden' }
     const db = getDb()
     const target = db.prepare('SELECT * FROM users WHERE id = ?').get(id)
     if (!target) return { error: 'not_found' }
     if (target.role === 'owner' && session.role !== 'owner') return { error: 'forbidden', message: 'Cannot modify owner.' }
-    const roleOrder = { owner: 4, admin: 3, editor: 2, viewer: 1 }
-    if (role && roleOrder[role] >= roleOrder[session.role] && session.role !== 'owner') return { error: 'forbidden', message: 'Cannot assign this role.' }
-    db.prepare('UPDATE users SET name = ?, role = ?, is_active = ? WHERE id = ?')
-      .run(name || target.name, role || target.role, is_active !== undefined ? is_active : target.is_active, id)
+    const roleOrder = { owner: 4, admin: 3, editor: 2, viewer: 1, none: 0 }
+    if (role && role !== 'none' && roleOrder[role] >= roleOrder[session.role] && session.role !== 'owner') {
+      return { error: 'forbidden', message: 'Cannot assign this role.' }
+    }
+    db.prepare('UPDATE users SET name = ?, role = ?, position = ?, phone = ?, is_active = ? WHERE id = ?')
+      .run(name || target.name, role || target.role, position !== undefined ? (position || null) : target.position, phone !== undefined ? (phone || null) : target.phone, is_active !== undefined ? is_active : target.is_active, id)
     const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(id)
-    logActivity({ userId: session.id, userName: session.name, userEmail: session.email, action: 'user:update', entity: 'user', entityId: id, details: { role, is_active } })
+    logActivity({ userId: session.id, userName: session.name, userEmail: session.email, action: 'staff:update', entity: 'user', entityId: id, details: { role, is_active } })
     syncWrite('users', 'upsert', updated)
     return { success: true }
   })
@@ -621,9 +632,9 @@ function registerExpensesHandlers(ipcMain) {
   ipcMain.handle('expenses:add', (_, record, session) => {
     const db = getDb()
     const result = db.prepare(`
-      INSERT INTO expenses (date, month_year, category, description, payment_method, amount, feed_type, quantity_kg, bags, supplier)
-      VALUES (@date, @month_year, @category, @description, @payment_method, @amount, @feed_type, @quantity_kg, @bags, @supplier)
-    `).run({ feed_type: null, quantity_kg: null, bags: null, supplier: null, ...record })
+      INSERT INTO expenses (date, month_year, category, description, payment_method, amount, feed_type, quantity_kg, bags, supplier, staff_id)
+      VALUES (@date, @month_year, @category, @description, @payment_method, @amount, @feed_type, @quantity_kg, @bags, @supplier, @staff_id)
+    `).run({ feed_type: null, quantity_kg: null, bags: null, supplier: null, staff_id: null, ...record })
     const inserted = db.prepare('SELECT * FROM expenses WHERE id = ?').get(result.lastInsertRowid)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'expenses:add', entity: 'expenses', entityId: result.lastInsertRowid })
     syncWrite('expenses', 'upsert', inserted)
@@ -637,9 +648,10 @@ function registerExpensesHandlers(ipcMain) {
         date = @date, category = @category, description = @description,
         payment_method = @payment_method, amount = @amount,
         feed_type = @feed_type, quantity_kg = @quantity_kg, bags = @bags, supplier = @supplier,
+        staff_id = @staff_id,
         updated_at = datetime('now')
       WHERE id = @id
-    `).run({ feed_type: null, quantity_kg: null, bags: null, supplier: null, ...record, id })
+    `).run({ feed_type: null, quantity_kg: null, bags: null, supplier: null, staff_id: null, ...record, id })
     const updated = db.prepare('SELECT * FROM expenses WHERE id = ?').get(id)
     logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'expenses:update', entity: 'expenses', entityId: id })
     syncWrite('expenses', 'upsert', updated)
@@ -1799,6 +1811,15 @@ function registerSyncHandlers(ipcMain) {
     saveLastSync(isoString)
     return { success: true }
   })
+
+  ipcMain.handle('sync:getStatus', () => {
+    const { url, key } = getSupabaseCreds()
+    const configured = !!(url && key)
+    const { isOnline } = require('./supabaseSync')
+    const pending = configured ? getDb().prepare('SELECT COUNT(*) as c FROM offline_queue').get().c : 0
+    const lastSync = getDb().prepare("SELECT value FROM settings WHERE key = 'last_sync_at'").get()
+    return { configured, online: isOnline(), pending, syncedAt: lastSync?.value || null }
+  })
 }
 
 function saveLastSync(iso) {
@@ -1806,6 +1827,41 @@ function saveLastSync(iso) {
     INSERT INTO settings (key, value, updated_at) VALUES ('last_sync_at', ?, datetime('now'))
     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
   `).run(iso)
+}
+
+// ─── STAFF ────────────────────────────────────────────────────────────────────
+
+function registerStaffHandlers(ipcMain) {
+  ipcMain.handle('staff:getAll', () => {
+    return getDb().prepare('SELECT * FROM staff ORDER BY name ASC').all()
+  })
+
+  ipcMain.handle('staff:add', (_, record, session) => {
+    const db = getDb()
+    const result = db.prepare(`
+      INSERT INTO staff (name, position, phone, notes, is_active)
+      VALUES (@name, @position, @phone, @notes, 1)
+    `).run({ position: null, phone: null, notes: null, ...record })
+    logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'staff:add', entity: 'staff', entityId: result.lastInsertRowid })
+    return { id: result.lastInsertRowid, ...record }
+  })
+
+  ipcMain.handle('staff:update', (_, id, record, session) => {
+    const db = getDb()
+    db.prepare(`
+      UPDATE staff SET name = @name, position = @position, phone = @phone,
+        notes = @notes, is_active = @is_active, updated_at = datetime('now')
+      WHERE id = @id
+    `).run({ position: null, phone: null, notes: null, ...record, id })
+    logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'staff:update', entity: 'staff', entityId: id })
+    return { success: true }
+  })
+
+  ipcMain.handle('staff:delete', (_, id, session) => {
+    getDb().prepare('DELETE FROM staff WHERE id = ?').run(id)
+    logActivity({ userId: session?.id, userName: session?.name, userEmail: session?.email, action: 'staff:delete', entity: 'staff', entityId: id })
+    return { success: true }
+  })
 }
 
 module.exports = { registerHandlers, setMainWindow }

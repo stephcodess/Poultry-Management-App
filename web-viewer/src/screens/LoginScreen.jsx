@@ -2,6 +2,32 @@ import React, { useState } from 'react'
 import { useAuth } from '../utils/AuthContext'
 import styles from './LoginScreen.module.css'
 
+function PasswordField({ value, onChange, placeholder, required, autoFocus }) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <div className={styles.pwWrap}>
+      <input
+        className={`${styles.input} ${styles.pwInput}`}
+        type={visible ? 'text' : 'password'}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        required={required}
+        autoFocus={autoFocus}
+      />
+      <button
+        type="button"
+        className={styles.pwToggle}
+        onClick={() => setVisible(v => !v)}
+        tabIndex={-1}
+        aria-label={visible ? 'Hide password' : 'Show password'}
+      >
+        {visible ? '🙈' : '👁'}
+      </button>
+    </div>
+  )
+}
+
 function BrandPanel() {
   return (
     <div className={styles.panel}>
@@ -122,9 +148,7 @@ export default function LoginScreen() {
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Password</label>
-              <input
-                className={styles.input}
-                type="password"
+              <PasswordField
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"

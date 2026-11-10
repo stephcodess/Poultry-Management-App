@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import PageLoader from '../components/common/PageLoader'
 import { useMonth } from '../utils/MonthContext'
-import { formatDate, formatCurrency, PAYMENT_METHODS, EXPENSE_CATEGORIES, toMonthYear } from '../utils/format'
+import { formatDate, formatCurrency, PAYMENT_METHODS, EXPENSE_CATEGORIES, STAFF_EXPENSE_CATEGORIES, toMonthYear } from '../utils/format'
 import Table from '../components/common/Table'
 import Button from '../components/common/Button'
 import Modal from '../components/common/Modal'
@@ -16,6 +16,12 @@ function loadFeedTypes() {
 }
 function saveFeedTypes(types) { localStorage.setItem('feedTypes', JSON.stringify(types)) }
 
+function loadCustomCategories() {
+  try { const s = localStorage.getItem('expenseCustomCategories'); if (s) return JSON.parse(s) } catch {}
+  return []
+}
+function saveCustomCategories(cats) { localStorage.setItem('expenseCustomCategories', JSON.stringify(cats)) }
+
 const EMPTY_FORM = {
   date: dayjs().format('YYYY-MM-DD'),
   category: 'Feed',
@@ -26,6 +32,7 @@ const EMPTY_FORM = {
   quantity_kg: '',
   bags: '',
   supplier: '',
+  staff_id: '',
 }
 
 const PIE_COLORS = [
@@ -50,22 +57,30 @@ export default function Expenses() {
   const [bagKgDraft, setBagKgDraft] = useState('')
 
   const [loading, setLoading] = useState(true)
+  const [staffList, setStaffList] = useState([])
+  const [customCategories, setCustomCategories] = useState(loadCustomCategories)
+  const [showCatModal, setShowCatModal] = useState(false)
+  const [newCatName, setNewCatName] = useState('')
+
+  const allCategories = [...EXPENSE_CATEGORIES, ...customCategories.filter(c => !EXPENSE_CATEGORIES.includes(c))]
 
   const load = useCallback(async () => {
     setLoading(true)
     await window.api.balance.autoLoad(monthYear)
-    const [r, s, b, ss, cfg] = await Promise.all([
+    const [r, s, b, ss, cfg, sl] = await Promise.all([
       window.api.expenses.getAll(monthYear),
       window.api.expenses.getSummary(monthYear),
       window.api.balance.get(monthYear),
       window.api.sales.getSummary(monthYear),
       window.api.settings.get(),
+      window.api.auth.getUsers(),
     ])
     setRecords(r)
     setSummary(s)
     setBalance(b)
     setSalesSummary(ss)
     if (cfg.feed_bag_kg) setBagKg(Number(cfg.feed_bag_kg))
+    setStaffList(Array.isArray(sl) ? sl : [])
     setLoading(false)
   }, [monthYear])
 
@@ -86,6 +101,7 @@ export default function Expenses() {
       quantity_kg: row.quantity_kg != null ? String(row.quantity_kg) : '',
       bags: row.bags != null ? String(row.bags) : '',
       supplier: row.supplier || '',
+      staff_id: row.staff_id ? String(row.staff_id) : '',
     })
     setShowModal(true)
   }
@@ -96,9 +112,12 @@ export default function Expenses() {
     load()
   }
 
+  const isStaffCategory = (cat) => STAFF_EXPENSE_CATEGORIES.includes(cat)
+
   async function handleSubmit(e) {
     e.preventDefault()
     const isFeed = form.category === 'Feed'
+    const needsStaff = isStaffCategory(form.category)
     const data = {
       ...form,
       month_year: toMonthYear(form.date),
@@ -107,6 +126,7 @@ export default function Expenses() {
       bags: isFeed && form.bags ? Number(form.bags) : null,
       feed_type: isFeed ? form.feed_type : null,
       supplier: isFeed ? (form.supplier || null) : null,
+      staff_id: needsStaff && form.staff_id ? Number(form.staff_id) : null,
     }
     if (editRecord) {
       await window.api.expenses.update(editRecord.id, data)
@@ -128,11 +148,13 @@ export default function Expenses() {
 
   const pieData = (summary?.byCategory || []).map(c => ({ name: c.category, value: c.total }))
 
+  const staffMap = Object.fromEntries(staffList.map(s => [s.id, s.name]))
+
   const columns = [
     { key: 'date', label: 'Date', render: v => formatDate(v) },
     {
       key: 'category', label: 'Category',
-      render: (v, _, i) => (
+      render: (v) => (
         <span className={styles.catBadge}
           style={{ background: PIE_COLORS[pieData.findIndex(p => p.name === v) % PIE_COLORS.length] + '1a',
                    color: PIE_COLORS[pieData.findIndex(p => p.name === v) % PIE_COLORS.length] }}>
@@ -150,6 +172,16 @@ export default function Expenses() {
           if (row.quantity_kg) parts.push(`${row.quantity_kg} kg`)
           if (row.supplier) parts.push(`from ${row.supplier}`)
           return <span>{parts.join(' · ') || v || <span style={{ color: '#9ca3af' }}>—</span>}</span>
+        }
+        if (row.staff_id && staffMap[row.staff_id]) {
+          return (
+            <span>
+              <span style={{ background: '#ede9fe', color: '#6d28d9', borderRadius: 6, padding: '1px 7px', fontSize: 12, fontWeight: 600, marginRight: 6 }}>
+                {staffMap[row.staff_id]}
+              </span>
+              {v || ''}
+            </span>
+          )
         }
         return v || <span style={{ color: '#9ca3af' }}>—</span>
       }
@@ -271,6 +303,7 @@ export default function Expenses() {
       {/* Toolbar */}
       <div className={styles.toolbar}>
         <Button onClick={openAdd}>+ Add Expense</Button>
+        <Button variant="secondary" onClick={() => { setNewCatName(''); setShowCatModal(true) }}>Manage Categories</Button>
         <span className={styles.recordCount}>{records.length} record{records.length !== 1 ? 's' : ''} this month</span>
       </div>
 
@@ -297,8 +330,15 @@ export default function Expenses() {
               </FormField>
               <FormField label="Category">
                 <Select value={form.category}
-                  onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
-                  {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  onChange={e => setForm(f => ({ ...f, category: e.target.value, staff_id: '' }))}>
+                  <optgroup label="General">
+                    {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </optgroup>
+                  {customCategories.filter(c => !EXPENSE_CATEGORIES.includes(c)).length > 0 && (
+                    <optgroup label="Custom">
+                      {customCategories.filter(c => !EXPENSE_CATEGORIES.includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
+                    </optgroup>
+                  )}
                 </Select>
               </FormField>
               <FormField label="Description">
@@ -312,6 +352,30 @@ export default function Expenses() {
                   {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                 </Select>
               </FormField>
+              {isStaffCategory(form.category) && (
+                <FormField label="Staff Member" hint="Select the staff this expense is for">
+                  <Select value={form.staff_id}
+                    onChange={e => setForm(f => ({ ...f, staff_id: e.target.value }))}>
+                    <option value="">— Select staff —</option>
+                    {staffList.filter(s => s.is_active).map(s => (
+                      <option key={s.id} value={String(s.id)}>{s.name}{s.position ? ` (${s.position})` : ''}</option>
+                    ))}
+                    {staffList.some(s => !s.is_active) && (
+                      <>
+                        <option disabled>── Inactive ──</option>
+                        {staffList.filter(s => !s.is_active).map(s => (
+                          <option key={s.id} value={String(s.id)}>{s.name}{s.position ? ` (${s.position})` : ''}</option>
+                        ))}
+                      </>
+                    )}
+                  </Select>
+                  {staffList.filter(s => s.is_active).length === 0 && (
+                    <div style={{ fontSize: 12, color: '#d97706', marginTop: 4 }}>
+                      No active staff found. Add staff members in the Staff page.
+                    </div>
+                  )}
+                </FormField>
+              )}
               <FormField label="Amount (₦)">
                 <Input type="number" min="0" step="0.01" value={form.amount}
                   onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required />
@@ -428,6 +492,81 @@ export default function Expenses() {
               </div>
             )}
           </form>
+        </Modal>
+      )}
+
+      {/* Manage Categories modal */}
+      {showCatModal && (
+        <Modal
+          title="Manage Expense Categories"
+          onClose={() => setShowCatModal(false)}
+          footer={<Button onClick={() => setShowCatModal(false)}>Done</Button>}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
+              Built-in categories cannot be removed. You can add custom categories below.
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {EXPENSE_CATEGORIES.map(c => (
+                <span key={c} style={{ background: '#f1f5f9', color: '#475569', borderRadius: 20, padding: '4px 12px', fontSize: 13, fontWeight: 500 }}>{c}</span>
+              ))}
+            </div>
+            {customCategories.filter(c => !EXPENSE_CATEGORIES.includes(c)).length > 0 && (
+              <>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Custom Categories</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {customCategories.filter(c => !EXPENSE_CATEGORIES.includes(c)).map(c => (
+                    <span key={c} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: 20, padding: '4px 10px 4px 12px', fontSize: 13, fontWeight: 500 }}>
+                      {c}
+                      <button
+                        onClick={() => {
+                          const updated = customCategories.filter(x => x !== c)
+                          setCustomCategories(updated)
+                          saveCustomCategories(updated)
+                        }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#93c5fd', fontSize: 14, lineHeight: 1, padding: 0 }}
+                        title="Remove category"
+                      >✕</button>
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 4 }}>Add New Category</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                placeholder="e.g. Pension, Allowance, Loan"
+                value={newCatName}
+                onChange={e => setNewCatName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    const trimmed = newCatName.trim()
+                    if (trimmed && !EXPENSE_CATEGORIES.includes(trimmed) && !customCategories.includes(trimmed)) {
+                      const updated = [...customCategories, trimmed]
+                      setCustomCategories(updated)
+                      saveCustomCategories(updated)
+                      setNewCatName('')
+                    }
+                  }
+                }}
+                style={{ flex: 1, border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', fontFamily: 'var(--font)' }}
+              />
+              <button
+                onClick={() => {
+                  const trimmed = newCatName.trim()
+                  if (trimmed && !EXPENSE_CATEGORIES.includes(trimmed) && !customCategories.includes(trimmed)) {
+                    const updated = [...customCategories, trimmed]
+                    setCustomCategories(updated)
+                    saveCustomCategories(updated)
+                    setNewCatName('')
+                  }
+                }}
+                style={{ padding: '0 18px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font)' }}
+              >Add</button>
+            </div>
+          </div>
         </Modal>
       )}
 

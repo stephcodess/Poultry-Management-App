@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../../utils/AuthContext'
 import styles from './LoginScreen.module.css'
 import chickenLogo from '../../assets/chicken-logo.jpg'
+import { PasswordInput } from '../../components/common/FormField'
 
 // ── Decorative left panel ──────────────────────────────────────────────────────
 function BrandPanel() {
@@ -248,6 +249,7 @@ function LoginFlow() {
     setLoading(false)
     if (result.status === 'not_found')  { setError('No account found with this email address.'); return }
     if (result.status === 'inactive')   { setError('This account has been deactivated. Contact your administrator.'); return }
+    if (result.status === 'no_access')  { setError('This account does not have app access. Contact your administrator.'); return }
     if (result.status === 'pending')    { setDisplayName(result.name); setSetupMode('invite'); setStep('setup'); return }
     if (result.status === 'active')     { setDisplayName(result.name); setStep('password'); setTimeout(() => passwordRef.current?.focus(), 50) }
   }
@@ -320,7 +322,7 @@ function LoginFlow() {
         {error && <div className={styles.error}>⚠ {error}</div>}
         <div className={styles.field}>
           <label className={styles.label}>Password</label>
-          <input ref={passwordRef} className={styles.input} type="password" value={password}
+          <PasswordInput ref={passwordRef} inputClassName={styles.input} value={password}
             onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
         </div>
         <button className={styles.btn} type="submit" disabled={loading}>
@@ -360,13 +362,13 @@ function LoginFlow() {
         )}
         <div className={styles.field}>
           <label className={styles.label}>New Password</label>
-          <input className={styles.input} type="password" value={newPassword}
+          <PasswordInput inputClassName={styles.input} value={newPassword}
             autoFocus={setupMode === 'owner'}
             onChange={e => setNewPassword(e.target.value)} placeholder="Minimum 6 characters" required />
         </div>
         <div className={styles.field}>
           <label className={styles.label}>Confirm Password</label>
-          <input className={styles.input} type="password" value={confirmPw}
+          <PasswordInput inputClassName={styles.input} value={confirmPw}
             onChange={e => setConfirmPw(e.target.value)} placeholder="Repeat password" required />
         </div>
         <button className={styles.btn} type="submit" disabled={loading}>

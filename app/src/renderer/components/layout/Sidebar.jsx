@@ -68,7 +68,7 @@ export default function Sidebar() {
 
         {isAdminOrOwner && (
           <>
-            <div className={styles.divider}>ACCESS</div>
+            <div className={styles.divider}>STAFF & ACCESS</div>
             <NavLink
               to="/users"
               className={({ isActive }) =>
@@ -76,7 +76,7 @@ export default function Sidebar() {
               }
             >
               <span className={styles.navIcon}>👥</span>
-              <span>Users</span>
+              <span>Staff</span>
             </NavLink>
             <NavLink
               to="/activity"

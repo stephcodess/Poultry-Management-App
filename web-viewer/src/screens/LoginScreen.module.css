@@ -294,6 +294,35 @@
 }
 .input::placeholder { color: #94a3b8; }
 
+.pwWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pwInput {
+  padding-right: 46px;
+}
+
+.pwToggle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #94a3b8;
+  border-radius: 0 10px 10px 0;
+  transition: color 0.15s;
+}
+.pwToggle:hover { color: #475569; }
+
 .btn {
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #fff;

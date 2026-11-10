@@ -151,6 +151,14 @@ contextBridge.exposeInMainWorld('api', {
     poultryControl: (opts) => invoke('report:poultryControl', opts),
   },
 
+  // Staff (non-login staff members for expense assignment)
+  staff: {
+    getAll: () => invoke('staff:getAll'),
+    add: (record) => invoke('staff:add', record, _session),
+    update: (id, record) => invoke('staff:update', id, record, _session),
+    delete: (id) => invoke('staff:delete', id, _session),
+  },
+
   sync: {
     toSupabase: () => invoke('sync:toSupabase'),
     fromSupabase: () => invoke('sync:fromSupabase'),
@@ -158,6 +166,12 @@ contextBridge.exposeInMainWorld('api', {
     getQueueCount: () => invoke('sync:getQueueCount'),
     getLastSync: () => invoke('sync:getLastSync'),
     saveLastSync: (iso) => invoke('sync:saveLastSync', iso),
+    getStatus: () => invoke('sync:getStatus'),
+    // Subscribe to push events from the main process
+    onStatus: (cb) => {
+      ipcRenderer.on('sync:status', (_, data) => cb(data))
+      return () => ipcRenderer.removeAllListeners('sync:status')
+    },
   },
 
   // Debtors (credit customers + credit sales + payments)
