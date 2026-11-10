@@ -128,9 +128,9 @@ export default function Sales() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [salesRes, domRes, pricesRes, flocksRes, custRes, incomeRes] = await Promise.all([
+      const [salesRes, domRes, pricesRes, flocksRes, custRes, incomeRes, csRes] = await Promise.all([
         supabase.from('sales')
-          .select('*, flocks(name, color), credit_sales!credit_sale_id(id, status, amount_owed, amount_paid, customer_id)')
+          .select('*, flocks(name, color)')
           .eq('month_year', monthYear)
           .order('date', { ascending: false }),
         supabase.from('domestic_usage')
@@ -144,8 +144,26 @@ export default function Sales() {
           .select('*')
           .eq('month_year', monthYear)
           .order('date', { ascending: false }),
+        supabase.from('credit_sales')
+          .select('id, date, month_year, customer_id, egg_size, crates, pieces, amount_owed, amount_paid, status')
+          .eq('month_year', monthYear),
       ])
-      setSales(salesRes.data || [])
+
+      // credit_sale_id is excluded from Supabase sync — match credit_sales to sales
+      // by date + egg_size + crates + pieces (unique enough per transaction)
+      const csRows = csRes.data || []
+      const salesWithCs = (salesRes.data || []).map(sale => {
+        if (sale.payment_status !== 'credit') return sale
+        const cs = csRows.find(c =>
+          String(c.date).slice(0, 10) === String(sale.date).slice(0, 10) &&
+          c.egg_size === sale.egg_size &&
+          c.crates === sale.crates &&
+          c.pieces === sale.pieces
+        )
+        return { ...sale, credit_sales: cs || null }
+      })
+
+      setSales(salesWithCs)
       setDomestic(domRes.data || [])
       setPrices(pricesRes.data || [])
       setFlocks(flocksRes.data || [])
@@ -258,7 +276,6 @@ export default function Sales() {
             status: deposit >= totalRevenue ? 'paid' : deposit > 0 ? 'partial' : 'unpaid',
           }).select().single()
           if (cs) {
-            await supabase.from('sales').update({ credit_sale_id: cs.id }).eq('id', inserted.id)
             if (deposit > 0) {
               await supabase.from('debt_payments').insert({
                 credit_sale_id: cs.id,
