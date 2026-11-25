@@ -1,12 +1,12 @@
--- ============================================================
--- Eldesign Poultry Farm — Supabase (PostgreSQL) Schema
+﻿-- ============================================================
+-- Eldesign Poultry Farm â€” Supabase (PostgreSQL) Schema
 -- Run this in the Supabase SQL Editor before using sync.
 -- Drop and recreate if re-running: run the DROP block first.
 -- ============================================================
 
--- ─── USERS ───────────────────────────────────────────────────
+-- â”€â”€â”€ USERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS users (
-  id              BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   name            TEXT NOT NULL,
   email           TEXT NOT NULL UNIQUE,
   password_hash   TEXT,
@@ -23,9 +23,9 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read users" ON users FOR SELECT USING (true);
 
 
--- ─── ACTIVITY LOG ────────────────────────────────────────────
+-- â”€â”€â”€ ACTIVITY LOG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS activity_log (
-  id          BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   user_id     BIGINT REFERENCES users(id) ON DELETE SET NULL,
   user_name   TEXT,
   user_email  TEXT,
@@ -40,9 +40,9 @@ ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read activity_log" ON activity_log FOR SELECT USING (true);
 
 
--- ─── FLOCKS ──────────────────────────────────────────────────
+-- â”€â”€â”€ FLOCKS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS flocks (
-  id                 BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   name               TEXT NOT NULL UNIQUE,
   color              TEXT NOT NULL DEFAULT '#2563eb',
   is_active          INTEGER NOT NULL DEFAULT 1,
@@ -60,9 +60,9 @@ ALTER TABLE flocks ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read flocks" ON flocks FOR SELECT USING (true);
 
 
--- ─── FLOCK MOVEMENTS ─────────────────────────────────────────
+-- â”€â”€â”€ FLOCK MOVEMENTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS flock_movements (
-  id         BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   date       TEXT NOT NULL,
   month_year TEXT NOT NULL,
   flock_id   BIGINT NOT NULL REFERENCES flocks(id) ON DELETE CASCADE,
@@ -77,9 +77,9 @@ ALTER TABLE flock_movements ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read flock_movements" ON flock_movements FOR SELECT USING (true);
 
 
--- ─── PRODUCTION ──────────────────────────────────────────────
+-- â”€â”€â”€ PRODUCTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS production (
-  id              BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   date            TEXT NOT NULL,
   month_year      TEXT NOT NULL,
   flock_id        BIGINT REFERENCES flocks(id) ON DELETE SET NULL,
@@ -97,9 +97,9 @@ ALTER TABLE production ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read production" ON production FOR SELECT USING (true);
 
 
--- ─── CREDIT CUSTOMERS (must come before sales + credit_sales) ─
+-- â”€â”€â”€ CREDIT CUSTOMERS (must come before sales + credit_sales) â”€
 CREATE TABLE IF NOT EXISTS credit_customers (
-  id         BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   name       TEXT NOT NULL,
   phone      TEXT,
   notes      TEXT,
@@ -111,9 +111,9 @@ ALTER TABLE credit_customers ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read credit_customers" ON credit_customers FOR SELECT USING (true);
 
 
--- ─── CREDIT SALES (must come before sales) ───────────────────
+-- â”€â”€â”€ CREDIT SALES (must come before sales) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS credit_sales (
-  id              BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   date            TEXT NOT NULL,
   month_year      TEXT NOT NULL,
   customer_id     BIGINT NOT NULL REFERENCES credit_customers(id) ON DELETE RESTRICT,
@@ -133,9 +133,9 @@ ALTER TABLE credit_sales ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read credit_sales" ON credit_sales FOR SELECT USING (true);
 
 
--- ─── SALES ───────────────────────────────────────────────────
+-- â”€â”€â”€ SALES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS sales (
-  id                 BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   date               TEXT NOT NULL,
   month_year         TEXT NOT NULL,
   egg_size           TEXT NOT NULL,
@@ -155,9 +155,9 @@ ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read sales" ON sales FOR SELECT USING (true);
 
 
--- ─── EXPENSES ────────────────────────────────────────────────
+-- â”€â”€â”€ EXPENSES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS expenses (
-  id             BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   date           TEXT NOT NULL,
   month_year     TEXT NOT NULL,
   category       TEXT NOT NULL,
@@ -176,9 +176,9 @@ ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read expenses" ON expenses FOR SELECT USING (true);
 
 
--- ─── DOMESTIC USAGE ──────────────────────────────────────────
+-- â”€â”€â”€ DOMESTIC USAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS domestic_usage (
-  id         BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   date       TEXT NOT NULL,
   month_year TEXT NOT NULL,
   location   TEXT,
@@ -194,9 +194,9 @@ ALTER TABLE domestic_usage ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read domestic_usage" ON domestic_usage FOR SELECT USING (true);
 
 
--- ─── FEED LOG ────────────────────────────────────────────────
+-- â”€â”€â”€ FEED LOG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS feed_log (
-  id          BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   date        TEXT NOT NULL,
   month_year  TEXT NOT NULL,
   flock_id    BIGINT REFERENCES flocks(id) ON DELETE SET NULL,
@@ -214,9 +214,9 @@ ALTER TABLE feed_log ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read feed_log" ON feed_log FOR SELECT USING (true);
 
 
--- ─── HEALTH RECORDS ──────────────────────────────────────────
+-- â”€â”€â”€ HEALTH RECORDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS health_records (
-  id              BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   date            TEXT NOT NULL,
   month_year      TEXT NOT NULL,
   flock_id        BIGINT REFERENCES flocks(id) ON DELETE SET NULL,
@@ -235,9 +235,9 @@ ALTER TABLE health_records ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read health_records" ON health_records FOR SELECT USING (true);
 
 
--- ─── EGG PRICES ──────────────────────────────────────────────
+-- â”€â”€â”€ EGG PRICES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS egg_prices (
-  id              BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   size            TEXT NOT NULL UNIQUE,
   price_per_crate REAL NOT NULL DEFAULT 0,
   sort_order      INTEGER NOT NULL DEFAULT 0,
@@ -248,9 +248,9 @@ ALTER TABLE egg_prices ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read egg_prices" ON egg_prices FOR SELECT USING (true);
 
 
--- ─── OPENING STOCK ───────────────────────────────────────────
+-- â”€â”€â”€ OPENING STOCK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS opening_stock (
-  id         BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   month_year TEXT NOT NULL,
   flock_id   BIGINT REFERENCES flocks(id) ON DELETE CASCADE,
   crates     INTEGER NOT NULL DEFAULT 0,
@@ -263,7 +263,7 @@ ALTER TABLE opening_stock ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read opening_stock" ON opening_stock FOR SELECT USING (true);
 
 
--- ─── MONTHLY BALANCE ─────────────────────────────────────────
+-- â”€â”€â”€ MONTHLY BALANCE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS monthly_balance (
   id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint,
   month_year      TEXT NOT NULL UNIQUE,
@@ -277,7 +277,7 @@ ALTER TABLE monthly_balance ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read monthly_balance" ON monthly_balance FOR SELECT USING (true);
 
 
--- ─── APP SETTINGS ────────────────────────────────────────────
+-- â”€â”€â”€ APP SETTINGS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE TABLE IF NOT EXISTS app_settings (
   key        TEXT PRIMARY KEY,
   value      TEXT NOT NULL,
@@ -288,9 +288,25 @@ ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon read app_settings" ON app_settings FOR SELECT USING (true);
 
 
--- ─── DEBT PAYMENTS ───────────────────────────────────────────
+-- â”€â”€â”€ DEBT PAYMENTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+-- OTHER INCOME
+CREATE TABLE IF NOT EXISTS other_income (
+  id             BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
+  date           TEXT NOT NULL,
+  month_year     TEXT NOT NULL,
+  category       TEXT NOT NULL,
+  description    TEXT,
+  amount         REAL NOT NULL DEFAULT 0,
+  payment_method TEXT NOT NULL DEFAULT 'Cash',
+  created_at     TEXT
+);
+
+ALTER TABLE other_income ENABLE ROW LEVEL SECURITY;
+CREATE POLICY anon read other_income ON other_income FOR SELECT USING (true);
+
 CREATE TABLE IF NOT EXISTS debt_payments (
-  id             BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint * 1000 + (random() * 999)::int,
   credit_sale_id BIGINT NOT NULL REFERENCES credit_sales(id) ON DELETE CASCADE,
   date           TEXT NOT NULL,
   month_year     TEXT NOT NULL,
@@ -315,7 +331,7 @@ DECLARE
     'users','activity_log','flocks','flock_movements','production',
     'sales','expenses','domestic_usage','feed_log','health_records',
     'egg_prices','opening_stock','monthly_balance','app_settings',
-    'credit_customers','credit_sales','debt_payments'
+    'credit_customers','credit_sales','debt_payments','other_income'
   ];
 BEGIN
   FOREACH tbl IN ARRAY tables LOOP
@@ -324,3 +340,7 @@ BEGIN
     EXECUTE format('CREATE POLICY "anon delete %I" ON %I FOR DELETE USING (true)', tbl, tbl);
   END LOOP;
 END $$;
+
+
+
+

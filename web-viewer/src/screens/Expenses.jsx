@@ -189,7 +189,7 @@ export default function Expenses() {
         staff_id: needsStaff && form.staff_id ? Number(form.staff_id) : null,
       }
       if (editRecord) await supabase.from('expenses').update(data).eq('id', editRecord.id)
-      else await supabase.from('expenses').insert(data)
+      else await supabase.from('expenses').insert({ id: Date.now(), ...data })
       setShowModal(false)
       load()
     } finally {

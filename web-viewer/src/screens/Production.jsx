@@ -146,7 +146,7 @@ export default function Production() {
         data.daily_yield_pct = parseFloat(((totalEggsRow / data.no_of_birds) * 100).toFixed(2))
       }
       if (editRecord) await supabase.from('production').update(data).eq('id', editRecord.id)
-      else await supabase.from('production').insert(data)
+      else await supabase.from('production').insert({ id: Date.now(), ...data })
       setShowModal(false)
       load()
     } finally { setSaving(false) }
@@ -166,6 +166,7 @@ export default function Production() {
         const f = openingForms[fk.id] || {}
         if (!f.crates && !f.pieces) continue
         await supabase.from('production').insert({
+          id: Date.now() + fk.id,
           date: monthYear + '-01',
           month_year: monthYear,
           flock_id: fk.id,

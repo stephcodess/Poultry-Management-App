@@ -258,12 +258,13 @@ export default function Sales() {
           await supabase.from('credit_sales').delete().eq('id', editSales.credit_sales.id)
         }
       } else {
-        const { data: inserted } = await supabase.from('sales').insert(data).select().single()
+        const { data: inserted } = await supabase.from('sales').insert({ id: Date.now(), ...data }).select().single()
         if (isCredit && salesForm.credit_customer_id && inserted) {
           const totalRevenue = (Number(salesForm.crates) + Number(salesForm.pieces || 0) / 30) * Number(salesForm.price_per_crate)
           const deposit = Number(salesForm.amount_paid_now) || 0
           const amountOwed = Math.max(totalRevenue - deposit, 0)
           const { data: cs } = await supabase.from('credit_sales').insert({
+            id: Date.now() + 1,
             date: salesForm.date,
             month_year: toMonthYear(salesForm.date),
             customer_id: Number(salesForm.credit_customer_id),
@@ -278,6 +279,7 @@ export default function Sales() {
           if (cs) {
             if (deposit > 0) {
               await supabase.from('debt_payments').insert({
+                id: Date.now() + 2,
                 credit_sale_id: cs.id,
                 customer_id: Number(salesForm.credit_customer_id),
                 amount: deposit,
@@ -309,7 +311,7 @@ export default function Sales() {
     e.preventDefault()
     if (!newCustomerName.trim()) return
     const { data: nc } = await supabase.from('credit_customers').insert({
-      name: newCustomerName.trim(), phone: newCustomerPhone.trim() || null, notes: null, is_active: true,
+      id: Date.now(), name: newCustomerName.trim(), phone: newCustomerPhone.trim() || null, notes: null, is_active: true,
     }).select().single()
     const { data: updated } = await supabase.from('credit_customers').select('*').neq('is_active', 0).order('name')
     setCustomers(updated || [])
@@ -337,7 +339,7 @@ export default function Sales() {
     try {
       const data = { date: domForm.date, month_year: toMonthYear(domForm.date), location: domForm.location || null, crates: Number(domForm.crates), pieces: Number(domForm.pieces), flock_id: domForm.flock_id ? Number(domForm.flock_id) : null }
       if (editDom) await supabase.from('domestic_usage').update(data).eq('id', editDom.id)
-      else await supabase.from('domestic_usage').insert(data)
+      else await supabase.from('domestic_usage').insert({ id: Date.now(), ...data })
       setShowDomModal(false)
       load()
     } finally {
@@ -370,7 +372,7 @@ export default function Sales() {
     try {
       const data = { date: incomeForm.date, month_year: toMonthYear(incomeForm.date), category: incomeForm.category, description: incomeForm.description || null, amount: Number(incomeForm.amount), payment_method: incomeForm.payment_method }
       if (editIncome) await supabase.from('other_income').update(data).eq('id', editIncome.id)
-      else await supabase.from('other_income').insert(data)
+      else await supabase.from('other_income').insert({ id: Date.now(), ...data })
       setShowIncomeModal(false)
       load()
     } finally {
