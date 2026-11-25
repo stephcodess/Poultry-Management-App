@@ -204,11 +204,13 @@ export default function Expenses() {
   }
 
   async function handleSaveBalance() {
-    await supabase.from('monthly_balance').upsert({
+    const row = {
+      id: balance?.id ?? Date.now(),
       month_year: monthYear,
       opening_balance: Number(balanceDraft) || 0,
       notes: balanceNotesDraft || null,
-    }, { onConflict: 'month_year' })
+    }
+    await supabase.from('monthly_balance').upsert(row, { onConflict: 'month_year' })
     setShowBalanceModal(false)
     load()
   }

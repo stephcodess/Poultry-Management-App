@@ -265,7 +265,7 @@ CREATE POLICY "anon read opening_stock" ON opening_stock FOR SELECT USING (true)
 
 -- ─── MONTHLY BALANCE ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS monthly_balance (
-  id              BIGINT PRIMARY KEY,
+  id              BIGINT PRIMARY KEY DEFAULT extract(epoch from now())::bigint,
   month_year      TEXT NOT NULL UNIQUE,
   opening_balance REAL NOT NULL DEFAULT 0,
   notes           TEXT,

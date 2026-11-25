@@ -159,6 +159,7 @@ export default function Settings() {
   )
 
   return (
+    <>
     <div className={styles.page}>
 
       {/* Farm Information */}
@@ -357,5 +358,6 @@ export default function Settings() {
         </p>
       </Modal>
     )}
+    </>
   )
 }

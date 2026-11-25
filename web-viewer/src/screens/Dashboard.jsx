@@ -68,7 +68,7 @@ export default function Dashboard() {
       supabase.from('debt_payments').select('amount').eq('month_year', monthYear),
       supabase.from('domestic_usage').select('count, crates, pieces').eq('month_year', monthYear),
       supabase.from('other_income').select('amount').eq('month_year', monthYear),
-      supabase.from('monthly_balance').select('opening_balance').eq('month_year', monthYear).maybeSingle(),
+      supabase.from('monthly_balance').select('id, opening_balance').eq('month_year', monthYear).maybeSingle(),
     ])
     // Also fetch previous month closing as opening stock
     const prevMonth = dayjs(monthYear + '-01').subtract(1, 'month').format('YYYY-MM')
@@ -89,6 +89,7 @@ export default function Dashboard() {
       domesticUsage: domRes.data || [],
       otherIncome: otherRes.data || [],
       openingBalance: balRes.data?.opening_balance || 0,
+      openingBalanceId: balRes.data?.id ?? null,
       prevProduction: prevProd.data || [],
       prevDomestic: prevDom.data || [],
       allOutstandingCs: allCsRes.data || [],
@@ -100,7 +101,8 @@ export default function Dashboard() {
 
   async function handleSaveBalance() {
     const val = parseFloat(balanceInput) || 0
-    await supabase.from('monthly_balance').upsert({ month_year: monthYear, opening_balance: val }, { onConflict: 'month_year' })
+    const row = { id: openingBalanceId ?? Date.now(), month_year: monthYear, opening_balance: val }
+    await supabase.from('monthly_balance').upsert(row, { onConflict: 'month_year' })
     setEditingBalance(false)
     load()
   }
@@ -112,7 +114,7 @@ export default function Dashboard() {
     </div>
   )
 
-  const { production, sales, expenses, flocks, movements, creditSales, debtPayments, domesticUsage, otherIncome, openingBalance, prevProduction, prevDomestic, allOutstandingCs } = data
+  const { production, sales, expenses, flocks, movements, creditSales, debtPayments, domesticUsage, otherIncome, openingBalance, openingBalanceId, prevProduction, prevDomestic, allOutstandingCs } = data
 
   // --- Egg math ---
   const prevProduced = prevProduction.reduce((s, r) => s + (r.crates || 0) * 30 + (r.pieces || 0), 0)
