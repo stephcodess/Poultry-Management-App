@@ -58,7 +58,10 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     setLoading(true)
     setEditingBalance(false)
-    const [prod, sal, exp, fl, mov, cs, dp, domRes, otherRes, balRes, openStockRes] = await Promise.all([
+    const prevMonth = dayjs(monthYear + '-01').subtract(1, 'month').format('YYYY-MM')
+
+    const [prod, sal, exp, fl, mov, cs, dp, domRes, otherRes, balRes, openStockRes,
+           prevProd, prevSal, prevDom, prevExpRes, prevBalRes, prevDpRes, prevCsRes] = await Promise.all([
       supabase.from('production').select('date, crates, pieces, flock_id, daily_yield_pct').eq('month_year', monthYear),
       supabase.from('sales').select('payment_status, crates, pieces, price_per_crate').eq('month_year', monthYear),
       supabase.from('expenses').select('amount, category').eq('month_year', monthYear),
@@ -69,9 +72,56 @@ export default function Dashboard() {
       supabase.from('domestic_usage').select('count, crates, pieces').eq('month_year', monthYear),
       supabase.from('other_income').select('amount').eq('month_year', monthYear),
       supabase.from('monthly_balance').select('id, opening_balance').eq('month_year', monthYear).maybeSingle(),
-      supabase.from('opening_stock').select('crates, pieces').eq('month_year', monthYear),
+      supabase.from('opening_stock').select('id, crates, pieces').eq('month_year', monthYear),
+      // prev month for auto-seeding
+      supabase.from('production').select('crates, pieces').eq('month_year', prevMonth),
+      supabase.from('sales').select('payment_status, crates, pieces, price_per_crate').eq('month_year', prevMonth),
+      supabase.from('domestic_usage').select('count, crates, pieces').eq('month_year', prevMonth),
+      supabase.from('expenses').select('amount').eq('month_year', prevMonth),
+      supabase.from('monthly_balance').select('opening_balance').eq('month_year', prevMonth).maybeSingle(),
+      supabase.from('debt_payments').select('amount').eq('month_year', prevMonth),
+      supabase.from('credit_sales').select('amount_paid').eq('month_year', prevMonth),
     ])
     const allCsRes = await supabase.from('credit_sales').select('amount_owed, amount_paid').neq('status', 'paid')
+
+    // ── Auto-seed opening balance if missing for this month ──
+    let balRecord = balRes.data
+    if (!balRecord && prevBalRes.data != null) {
+      const prevCashSales = (prevSal.data || [])
+        .filter(r => !r.payment_status || r.payment_status === 'cash')
+        .reduce((s, r) => s + ((r.crates || 0) + (r.pieces || 0) / 30) * (r.price_per_crate || 0), 0)
+      const prevDeposits   = (prevCsRes.data  || []).reduce((s, r) => s + (r.amount_paid || 0), 0)
+      const prevRepayments = (prevDpRes.data  || []).reduce((s, r) => s + (r.amount || 0), 0)
+      const prevTotalExp   = (prevExpRes.data || []).reduce((s, r) => s + (r.amount || 0), 0)
+      const derived = (prevBalRes.data.opening_balance || 0) + prevCashSales + prevDeposits + prevRepayments - prevTotalExp
+      const newId = Date.now()
+      await supabase.from('monthly_balance').upsert(
+        { id: newId, month_year: monthYear, opening_balance: derived, notes: `Auto-derived from ${prevMonth}` },
+        { onConflict: 'month_year' }
+      )
+      balRecord = { id: newId, opening_balance: derived }
+    }
+
+    // ── Auto-seed opening stock if missing for this month ──
+    let openStockRows = openStockRes.data || []
+    if (openStockRows.length === 0 && (prevProd.data || []).length > 0) {
+      const prevProduced = (prevProd.data || []).reduce((s, r) => s + (r.crates || 0) * 30 + (r.pieces || 0), 0)
+      const prevSold    = (prevSal.data  || []).reduce((s, r) => s + (r.crates || 0) * 30 + (r.pieces || 0), 0)
+      const prevDomUsed = (prevDom.data  || []).reduce((s, r) => s + (r.crates != null ? (r.crates || 0) * 30 + (r.pieces || 0) : (r.count || 0)), 0)
+      const closingEggs = Math.max(0, prevProduced - prevSold - prevDomUsed)
+      const crates = Math.floor(closingEggs / 30)
+      const pieces = closingEggs % 30
+      if (closingEggs > 0) {
+        const newId = Date.now() + 1
+        await supabase.from('opening_stock').upsert(
+          { id: newId, month_year: monthYear, flock_id: null, crates, pieces },
+          { onConflict: 'month_year,flock_id' }
+        )
+        openStockRows = [{ id: newId, crates, pieces }]
+      }
+    }
+
+    const openingEggs = openStockRows.reduce((s, r) => s + (r.crates || 0) * 30 + (r.pieces || 0), 0)
 
     setData({
       production: prod.data || [],
@@ -83,9 +133,9 @@ export default function Dashboard() {
       debtPayments: dp.data || [],
       domesticUsage: domRes.data || [],
       otherIncome: otherRes.data || [],
-      openingBalance: balRes.data?.opening_balance || 0,
-      openingBalanceId: balRes.data?.id ?? null,
-      openingStock: openStockRes.data || [],
+      openingBalance: balRecord?.opening_balance || 0,
+      openingBalanceId: balRecord?.id ?? null,
+      openingEggs,
       allOutstandingCs: allCsRes.data || [],
     })
     setLoading(false)
@@ -108,10 +158,9 @@ export default function Dashboard() {
     </div>
   )
 
-  const { production, sales, expenses, flocks, movements, creditSales, debtPayments, domesticUsage, otherIncome, openingBalance, openingBalanceId, openingStock, allOutstandingCs } = data
+  const { production, sales, expenses, flocks, movements, creditSales, debtPayments, domesticUsage, otherIncome, openingBalance, openingBalanceId, openingEggs, allOutstandingCs } = data
 
   // --- Egg math ---
-  const openingEggs = openingStock.reduce((s, r) => s + (r.crates || 0) * 30 + (r.pieces || 0), 0)
   const totalProduced = production.reduce((s, r) => s + (r.crates || 0) * 30 + (r.pieces || 0), 0)
   const totalStock = openingEggs + totalProduced
   const domEggs = domesticUsage.reduce((s, r) => s + (r.crates != null ? r.crates * 30 + (r.pieces || 0) : (r.count || 0)), 0)

@@ -107,13 +107,20 @@ export default function Expenses() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [expRes, salesRes, balRes, dpRes, staffRes, cfgRes] = await Promise.all([
+      const prevMonth = dayjs(monthYear + '-01').subtract(1, 'month').format('YYYY-MM')
+      const [expRes, salesRes, balRes, dpRes, staffRes, cfgRes,
+             prevSalRes, prevExpRes, prevBalRes, prevDpRes, prevCsRes] = await Promise.all([
         supabase.from('expenses').select('*').eq('month_year', monthYear).order('date', { ascending: false }),
         supabase.from('sales').select('payment_status, crates, pieces, price_per_crate').eq('month_year', monthYear),
         supabase.from('monthly_balance').select('*').eq('month_year', monthYear).maybeSingle(),
         supabase.from('debt_payments').select('amount').eq('month_year', monthYear),
         supabase.from('users').select('id, name, position, is_active').order('name'),
         supabase.from('app_settings').select('value').eq('key', 'feed_bag_kg').maybeSingle(),
+        supabase.from('sales').select('payment_status, crates, pieces, price_per_crate').eq('month_year', prevMonth),
+        supabase.from('expenses').select('amount').eq('month_year', prevMonth),
+        supabase.from('monthly_balance').select('opening_balance').eq('month_year', prevMonth).maybeSingle(),
+        supabase.from('debt_payments').select('amount').eq('month_year', prevMonth),
+        supabase.from('credit_sales').select('amount_paid').eq('month_year', prevMonth),
       ])
       setRecords(expRes.data || [])
       const cashSales = (salesRes.data || [])
@@ -121,7 +128,25 @@ export default function Expenses() {
         .reduce((sum, r) => sum + ((r.crates || 0) + (r.pieces || 0) / 30) * (r.price_per_crate || 0), 0)
       const repayments = (dpRes.data || []).reduce((sum, r) => sum + (r.amount || 0), 0)
       setCashReceived(cashSales + repayments)
-      setBalance(balRes.data || null)
+
+      // Auto-seed opening balance from last month's closing if not yet set for this month
+      let balRecord = balRes.data
+      if (!balRecord && prevBalRes.data != null) {
+        const prevCashSales = (prevSalRes.data || [])
+          .filter(r => !r.payment_status || r.payment_status === 'cash')
+          .reduce((sum, r) => sum + ((r.crates || 0) + (r.pieces || 0) / 30) * (r.price_per_crate || 0), 0)
+        const prevDeposits   = (prevCsRes.data  || []).reduce((sum, r) => sum + (r.amount_paid || 0), 0)
+        const prevRepayments = (prevDpRes.data  || []).reduce((sum, r) => sum + (r.amount || 0), 0)
+        const prevTotalExp   = (prevExpRes.data || []).reduce((sum, r) => sum + (r.amount || 0), 0)
+        const derived = (prevBalRes.data.opening_balance || 0) + prevCashSales + prevDeposits + prevRepayments - prevTotalExp
+        const newId = Date.now()
+        await supabase.from('monthly_balance').upsert(
+          { id: newId, month_year: monthYear, opening_balance: derived, notes: `Auto-derived from ${prevMonth}` },
+          { onConflict: 'month_year' }
+        )
+        balRecord = { id: newId, opening_balance: derived }
+      }
+      setBalance(balRecord)
       setStaffList(staffRes.data || [])
       if (cfgRes.data?.value) setBagKg(Number(cfgRes.data.value) || 25)
     } finally {
