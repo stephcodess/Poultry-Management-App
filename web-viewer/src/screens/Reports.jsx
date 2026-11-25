@@ -146,8 +146,8 @@ function MonthlyReport() {
       const flatMort = (mortality || []).map(r => ({ ...r, flock_name: r.flocks?.name }))
 
       // Build summary object matching what buildMonthlyReportHtml expects
-      const totalProduced = flatProd.reduce((s, r) => s + (r.total_eggs || 0), 0)
-      const grossRevenue  = flatSales.reduce((s, r) => s + (r.total_revenue || 0), 0)
+      const totalProduced = flatProd.reduce((s, r) => s + (r.crates || 0) * 30 + (r.pieces || 0), 0)
+      const grossRevenue  = flatSales.reduce((s, r) => s + ((r.crates || 0) + (r.pieces || 0) / 30) * (r.price_per_crate || 0), 0)
       const totalExpenses = (expenses || []).reduce((s, r) => s + (r.amount || 0), 0)
       const openingBalance = 0 // not available in web viewer easily
 
@@ -160,7 +160,7 @@ function MonthlyReport() {
 
       // Best selling size
       const sizeRev = {}
-      flatSales.forEach(r => { sizeRev[r.egg_size] = (sizeRev[r.egg_size] || 0) + (r.total_revenue || 0) })
+      flatSales.forEach(r => { sizeRev[r.egg_size] = (sizeRev[r.egg_size] || 0) + ((r.crates || 0) + (r.pieces || 0) / 30) * (r.price_per_crate || 0) })
       const bestSellingSize = Object.entries(sizeRev).sort(([,a],[,b]) => b - a)[0]?.[0] || '—'
       const totalCrates = flatSales.reduce((s, r) => s + (r.crates || 0), 0)
       const avgCratePrice = totalCrates > 0 ? grossRevenue / totalCrates : 0
@@ -251,8 +251,8 @@ function AnnualReport() {
         const flatFeed  = (feedData.data || []).map(r => ({ ...r, flock_name: r.flocks?.name }))
         const flatMort  = (mort.data  || []).map(r => ({ ...r, flock_name: r.flocks?.name }))
 
-        const totalProduced = flatProd.reduce((s, r) => s + (r.total_eggs || 0), 0)
-        const grossRevenue  = flatSales.reduce((s, r) => s + (r.total_revenue || 0), 0)
+        const totalProduced = flatProd.reduce((s, r) => s + (r.crates || 0) * 30 + (r.pieces || 0), 0)
+        const grossRevenue  = flatSales.reduce((s, r) => s + ((r.crates || 0) + (r.pieces || 0) / 30) * (r.price_per_crate || 0), 0)
         const totalExpenses = (exp.data || []).reduce((s, r) => s + (r.amount || 0), 0)
 
         return {

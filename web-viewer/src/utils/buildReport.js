@@ -269,8 +269,8 @@ export function buildMonthlyReportHtml({ summary, production, sales, domestic, e
     if (!prodByDate[r.date]) prodByDate[r.date] = {}
     prodByDate[r.date][r.flock_name || r.layer_type || 'Unknown'] = r
   })
-  const totalL1 = production.filter(r => r.layer_type === 'L1').reduce((s, r) => s + r.total_eggs, 0)
-  const totalL2 = production.filter(r => r.layer_type === 'L2').reduce((s, r) => s + r.total_eggs, 0)
+  const totalL1 = production.filter(r => r.layer_type === 'L1').reduce((s, r) => s + (r.crates || 0) * 30 + (r.pieces || 0), 0)
+  const totalL2 = production.filter(r => r.layer_type === 'L2').reduce((s, r) => s + (r.crates || 0) * 30 + (r.pieces || 0), 0)
 
   // ── Sales aggregates ──────────────────────────────────────
   const totalCratesSold = sales.reduce((s, r) => s + (r.crates || 0), 0)
@@ -278,7 +278,7 @@ export function buildMonthlyReportHtml({ summary, production, sales, domestic, e
   sales.forEach(r => {
     if (!salesBySize[r.egg_size]) salesBySize[r.egg_size] = { qty: 0, rev: 0 }
     salesBySize[r.egg_size].qty += r.crates || 0
-    salesBySize[r.egg_size].rev += r.total_revenue || 0
+    salesBySize[r.egg_size].rev += ((r.crates || 0) + (r.pieces || 0) / 30) * (r.price_per_crate || 0)
   })
 
   // ── Domestic aggregates ───────────────────────────────────
@@ -325,7 +325,7 @@ export function buildMonthlyReportHtml({ summary, production, sales, domestic, e
       td(esc(r.flock_name || LAYER_LABELS[r.layer_type] || r.layer_type || '—')),
       td(r.no_of_birds ? r.no_of_birds.toLocaleString() : '—', 'num'),
       td(`${r.crates}c ${r.pieces}p`, 'num'),
-      td(r.total_eggs?.toLocaleString() ?? '—', 'num bold'),
+      td(((r.crates || 0) * 30 + (r.pieces || 0)).toLocaleString(), 'num bold'),
       td(r.daily_yield_pct ? `${r.daily_yield_pct}%` : '—', 'num'),
       td(esc(r.notes) || '—', 'muted'),
     ])).join('')
@@ -340,7 +340,7 @@ export function buildMonthlyReportHtml({ summary, production, sales, domestic, e
       td(esc(r.flock_name || LAYER_LABELS[r.layer_type] || r.layer_type || '—')),
       td(`${r.crates}c ${r.pieces || 0}p`, 'num'),
       td(formatCurrency(r.price_per_crate), 'num'),
-      td(formatCurrency(r.total_revenue), 'num green'),
+      td(formatCurrency(((r.crates || 0) + (r.pieces || 0) / 30) * (r.price_per_crate || 0)), 'num green'),
       td(esc(r.buyer_name) || '—'),
       td(esc(r.payment_method) || '—'),
     ])).join('')
