@@ -58,7 +58,7 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     setLoading(true)
     setEditingBalance(false)
-    const [prod, sal, exp, fl, mov, cs, dp, domRes, otherRes, balRes] = await Promise.all([
+    const [prod, sal, exp, fl, mov, cs, dp, domRes, otherRes, balRes, openStockRes] = await Promise.all([
       supabase.from('production').select('date, crates, pieces, flock_id, daily_yield_pct').eq('month_year', monthYear),
       supabase.from('sales').select('payment_status, crates, pieces, price_per_crate').eq('month_year', monthYear),
       supabase.from('expenses').select('amount, category').eq('month_year', monthYear),
@@ -69,12 +69,7 @@ export default function Dashboard() {
       supabase.from('domestic_usage').select('count, crates, pieces').eq('month_year', monthYear),
       supabase.from('other_income').select('amount').eq('month_year', monthYear),
       supabase.from('monthly_balance').select('id, opening_balance').eq('month_year', monthYear).maybeSingle(),
-    ])
-    // Also fetch previous month closing as opening stock
-    const prevMonth = dayjs(monthYear + '-01').subtract(1, 'month').format('YYYY-MM')
-    const [prevProd, prevDom] = await Promise.all([
-      supabase.from('production').select('crates, pieces').eq('month_year', prevMonth),
-      supabase.from('domestic_usage').select('count, crates, pieces').eq('month_year', prevMonth),
+      supabase.from('opening_stock').select('crates, pieces').eq('month_year', monthYear),
     ])
     const allCsRes = await supabase.from('credit_sales').select('amount_owed, amount_paid').neq('status', 'paid')
 
@@ -90,8 +85,7 @@ export default function Dashboard() {
       otherIncome: otherRes.data || [],
       openingBalance: balRes.data?.opening_balance || 0,
       openingBalanceId: balRes.data?.id ?? null,
-      prevProduction: prevProd.data || [],
-      prevDomestic: prevDom.data || [],
+      openingStock: openStockRes.data || [],
       allOutstandingCs: allCsRes.data || [],
     })
     setLoading(false)
@@ -114,12 +108,10 @@ export default function Dashboard() {
     </div>
   )
 
-  const { production, sales, expenses, flocks, movements, creditSales, debtPayments, domesticUsage, otherIncome, openingBalance, openingBalanceId, prevProduction, prevDomestic, allOutstandingCs } = data
+  const { production, sales, expenses, flocks, movements, creditSales, debtPayments, domesticUsage, otherIncome, openingBalance, openingBalanceId, openingStock, allOutstandingCs } = data
 
   // --- Egg math ---
-  const prevProduced = prevProduction.reduce((s, r) => s + (r.crates || 0) * 30 + (r.pieces || 0), 0)
-  const prevSoldDom = prevDomestic.reduce((s, r) => s + (r.crates != null ? r.crates * 30 + (r.pieces || 0) : (r.count || 0)), 0)
-  const openingEggs = Math.max(0, prevProduced - prevSoldDom)
+  const openingEggs = openingStock.reduce((s, r) => s + (r.crates || 0) * 30 + (r.pieces || 0), 0)
   const totalProduced = production.reduce((s, r) => s + (r.crates || 0) * 30 + (r.pieces || 0), 0)
   const totalStock = openingEggs + totalProduced
   const domEggs = domesticUsage.reduce((s, r) => s + (r.crates != null ? r.crates * 30 + (r.pieces || 0) : (r.count || 0)), 0)
